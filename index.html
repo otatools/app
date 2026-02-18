@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<!-- saved from url=(0045)https://otatools.github.io/toolbox/stopwatch/ -->
+<html lang="ja"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ストップウォッチ</title>
+    <script src="./ストップウォッチ_files/saved_resource"></script>
+    <link href="./ストップウォッチ_files/css2" rel="stylesheet">
+    <style>
+        :root {
+            --accent-primary: #0ea5e9;
+            --accent-stop: #f43f5e;
+            --bg-color: #ffffff;
+            --text-main: #1e293b;
+            --glass-bg: rgba(255, 255, 255, 0.4);
+            --glass-border: rgba(255, 255, 255, 0.7);
+            --text-reflect: rgba(255, 255, 255, 0.8);
+            --divider-color: rgba(148, 163, 184, 0.15);
+        }
+
+        body.dark-mode {
+            --bg-color: #0f172a;
+            --text-main: #f1f5f9;
+            --glass-bg: rgba(30, 41, 59, 0.4);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-reflect: rgba(255, 255, 255, 0.15);
+            --divider-color: rgba(255, 255, 255, 0.05);
+        }
+
+        body {
+            background-color: var(--bg-color);
+            font-family: 'M PLUS 1p', sans-serif;
+            overflow: hidden;
+            user-select: none;
+            color: var(--text-main);
+            min-height: 100vh;
+            min-height: -webkit-fill-available;
+            transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        html { height: -webkit-fill-available; }
+
+        /* タイマー表示 */
+        .timer-display {
+            font-variant-numeric: tabular-nums;
+            font-size: clamp(5.5rem, 24vw, 16rem);
+            font-weight: 800;
+            line-height: 1;
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+            color: var(--text-main);
+            opacity: 0.95;
+            text-shadow: 
+                0px 2px 4px var(--text-reflect),
+                0px 10px 30px rgba(14, 165, 233, 0.1);
+        }
+
+        /* 縦方向の余裕に基づいたサイズ微調整 */
+        @media (min-height: 800px) {
+            .timer-display { font-size: clamp(6rem, 25vh, 14rem); }
+        }
+
+        .unit-label {
+            font-size: 0.18em;
+            font-weight: 500;
+            color: #94a3b8;
+            margin: 0 0.12em;
+            text-shadow: none;
+        }
+
+        .ms-digit {
+            font-size: 0.6em;
+            color: var(--accent-primary);
+            opacity: 0.7;
+            font-weight: 500;
+            margin-left: 0.1em;
+            text-shadow: none;
+        }
+
+        .nav-link {
+            padding: 0.75rem 2rem;
+            transition: all 0.3s ease;
+            color: #94a3b8;
+            font-weight: 800;
+            outline: none; /* フォーカス枠を削除 */
+        }
+        .nav-link:focus { outline: none; }
+
+        .nav-link.active {
+            color: var(--accent-primary);
+            position: relative;
+        }
+        .nav-link.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0.25rem;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 1.5rem;
+            height: 4px;
+            background: var(--accent-primary);
+            border-radius: 99px;
+        }
+
+        .btn-base {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 1.5rem;
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            height: 4rem; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+            outline: none; /* フォーカス枠を削除 */
+        }
+        .btn-base:focus { outline: none; }
+
+        .btn-start {
+            background: rgba(14, 165, 233, 0.1);
+            color: var(--accent-primary);
+        }
+        .btn-start:hover { background: rgba(14, 165, 233, 0.15); }
+        .btn-start:active { transform: scale(0.96) translateY(2px); }
+
+        .btn-stop {
+            background: rgba(244, 63, 94, 0.1);
+            color: var(--accent-stop);
+            border-color: rgba(244, 63, 94, 0.2);
+        }
+        .btn-stop:hover { background: rgba(244, 63, 94, 0.15); }
+
+        .btn-reset {
+            background: rgba(148, 163, 184, 0.05);
+            color: #94a3b8;
+            height: 2.5rem;
+        }
+
+        .theme-toggle {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            width: 3rem;
+            height: 3rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(148, 163, 184, 0.1);
+            border: 1px solid var(--glass-border);
+            cursor: pointer;
+            z-index: 50;
+            outline: none; /* フォーカス枠を削除 */
+        }
+        .theme-toggle:focus { outline: none; }
+
+        /* 記録リストのデザイン */
+        .log-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 1.5rem;
+            overflow: hidden;
+        }
+
+        .log-item {
+            transition: background-color 0.2s ease;
+            border-bottom: 1px solid var(--divider-color);
+        }
+        .log-item:last-child { border-bottom: none; }
+        .log-item:hover { background-color: rgba(14, 165, 233, 0.03); }
+
+        .space-info {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--accent-primary);
+            opacity: 0.7;
+            margin-top: 1rem;
+            letter-spacing: 0.05em;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        /* --- レスポンシブ調整 --- */
+
+        /* スマホ縦向き: 高さがない場合 - 数字サイズを22vhへ拡大 */
+        @media (max-height: 700px) {
+            .timer-display { font-size: 22vh; }
+            .button-container { margin-top: 1rem !important; }
+            .btn-base { height: 3.5rem !important; }
+        }
+
+        /* スマホ横向き (Landscape) 専門の調整 */
+        @media (orientation: landscape) and (max-height: 500px) {
+            .timer-display { font-size: 35vh; }
+            .button-container { 
+                flex-direction: row !important; 
+                max-width: 480px !important;
+                margin-top: 0.5rem !important;
+                gap: 0.75rem !important;
+                padding: 0 1rem;
+            }
+            .btn-base { height: 3.2rem !important; flex: 1; }
+            .btn-reset { height: 3.2rem !important; max-width: 120px; }
+            .space-info { display: none; }
+            nav { margin-top: 0 !important; }
+            footer { display: none; }
+        }
+
+        /* パソコン版の微調整 */
+        @media (min-width: 1024px) {
+            .button-container { max-width: 320px !important; }
+        }
+
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.fixed{position:fixed}.relative{position:relative}.inset-0{inset:0px}.z-10{z-index:10}.z-\[100\]{z-index:100}.mb-2{margin-bottom:0.5rem}.mb-24{margin-bottom:6rem}.mb-6{margin-bottom:1.5rem}.mb-8{margin-bottom:2rem}.mt-1{margin-top:0.25rem}.mt-12{margin-top:3rem}.mt-2{margin-top:0.5rem}.flex{display:flex}.hidden{display:none}.h-1{height:0.25rem}.h-5{height:1.25rem}.h-6{height:1.5rem}.h-full{height:100%}.w-12{width:3rem}.w-5{width:1.25rem}.w-6{width:1.5rem}.w-full{width:100%}.max-w-xl{max-width:36rem}.max-w-xs{max-width:20rem}.flex-1{flex:1 1 0%}.shrink-0{flex-shrink:0}.flex-col{flex-direction:column}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-2{gap:0.5rem}.gap-3{gap:0.75rem}.gap-4{gap:1rem}.overflow-hidden{overflow:hidden}.overflow-y-auto{overflow-y:auto}.rounded-2xl{border-radius:1rem}.rounded-\[2rem\]{border-radius:2rem}.rounded-full{border-radius:9999px}.border{border-width:1px}.border-white\/20{border-color:rgb(255 255 255 / 0.2)}.bg-black\/40{background-color:rgb(0 0 0 / 0.4)}.bg-rose-500{--tw-bg-opacity:1;background-color:rgb(244 63 94 / var(--tw-bg-opacity, 1))}.bg-sky-400{--tw-bg-opacity:1;background-color:rgb(56 189 248 / var(--tw-bg-opacity, 1))}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity, 1))}.p-2{padding:0.5rem}.p-4{padding:1rem}.p-6{padding:1.5rem}.p-8{padding:2rem}.px-2{padding-left:0.5rem;padding-right:0.5rem}.px-6{padding-left:1.5rem;padding-right:1.5rem}.px-8{padding-left:2rem;padding-right:2rem}.py-24{padding-top:6rem;padding-bottom:6rem}.py-4{padding-top:1rem;padding-bottom:1rem}.py-6{padding-top:1.5rem;padding-bottom:1.5rem}.text-center{text-align:center}.text-right{text-align:right}.text-2xl{font-size:1.5rem;line-height:2rem}.text-\[10px\]{font-size:10px}.text-\[9px\]{font-size:9px}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.text-xs{font-size:0.75rem;line-height:1rem}.font-bold{font-weight:700}.font-extrabold{font-weight:800}.font-medium{font-weight:500}.uppercase{text-transform:uppercase}.leading-none{line-height:1}.tracking-tight{letter-spacing:-0.025em}.tracking-wide{letter-spacing:0.025em}.tracking-widest{letter-spacing:0.1em}.text-amber-500{--tw-text-opacity:1;color:rgb(245 158 11 / var(--tw-text-opacity, 1))}.text-indigo-400{--tw-text-opacity:1;color:rgb(129 140 248 / var(--tw-text-opacity, 1))}.text-slate-400{--tw-text-opacity:1;color:rgb(148 163 184 / var(--tw-text-opacity, 1))}.text-slate-800{--tw-text-opacity:1;color:rgb(30 41 59 / var(--tw-text-opacity, 1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.opacity-40{opacity:0.4}.opacity-70{opacity:0.7}.shadow-2xl{--tw-shadow:0 25px 50px -12px rgb(0 0 0 / 0.25);--tw-shadow-colored:0 25px 50px -12px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.backdrop-blur-sm{--tw-backdrop-blur:blur(4px);-webkit-backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia)}.transition-colors{transition-property:color, background-color, border-color, fill, stroke, -webkit-text-decoration-color;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, -webkit-text-decoration-color;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.hover\:text-rose-500:hover{--tw-text-opacity:1;color:rgb(244 63 94 / var(--tw-text-opacity, 1))}.focus\:outline-none:focus{outline:2px solid transparent;outline-offset:2px}@media (min-width: 768px){.md\:text-3xl{font-size:1.875rem;line-height:2.25rem}}@media (prefers-color-scheme: dark){.dark\:bg-slate-800{--tw-bg-opacity:1;background-color:rgb(30 41 59 / var(--tw-bg-opacity, 1))}.dark\:text-white{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}}</style></head>
+<body class="flex flex-col" style="height: 551px;">
+
+    <!-- 確認モーダル -->
+    <div id="modalOverlay" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm">
+        <div class="bg-white dark:bg-slate-800 p-8 rounded-[2rem] shadow-2xl max-w-xs w-full text-center border border-white/20">
+            <h3 class="text-xl font-bold mb-2 text-slate-800 dark:text-white">きろくを消しますか？</h3>
+            <p class="text-sm text-slate-400 mb-8 font-medium">このそうさは、とりけせません。</p>
+            <div class="flex flex-col gap-3">
+                <button id="confirmDelete" class="w-full py-4 bg-rose-500 text-white font-bold rounded-2xl focus:outline-none">ぜんぶ消す</button>
+                <button id="cancelDelete" class="w-full py-4 text-slate-400 font-bold focus:outline-none">やめる</button>
+            </div>
+        </div>
+    </div>
+
+    <button id="themeToggle" class="theme-toggle" title="テーマ切り替え">
+        <svg id="sunIcon" class="w-6 h-6 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <svg id="moonIcon" class="hidden w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+    </button>
+
+    <nav class="flex justify-center gap-2 px-8 z-10 shrink-0 mt-2">
+        <button id="tabTimer" class="nav-link active">はかる</button>
+        <button id="tabLogs" class="nav-link">きろく</button>
+    </nav>
+
+    <main class="flex-1 flex flex-col items-center relative overflow-hidden main-content">
+        
+        <div id="timerSection" class="flex-1 w-full flex flex-col items-center justify-center p-4 fade-in">
+            <div class="timer-display">
+                <span id="min">00</span><span class="unit-label">分</span>
+                <span id="sec">00</span><span class="unit-label">秒</span>
+                <span id="msec" class="ms-digit">00</span>
+            </div>
+
+            <div class="mt-12 w-full max-w-xs flex flex-col items-center gap-4 px-6 button-container">
+                <button id="startStopBtn" class="btn-base btn-start w-full text-2xl font-extrabold tracking-tight">
+                    スタート
+                </button>
+                <button id="resetBtn" class="btn-base btn-reset w-full text-xs font-bold tracking-widest uppercase">
+                    リセット
+                </button>
+                <div class="space-info">
+                    スペースキーでスタート / ストップ<br>
+                    エンターキーでリセット
+                </div>
+            </div>
+        </div>
+
+        <div id="logsSection" class="hidden w-full max-w-xl h-full overflow-y-auto px-6 py-6 fade-in">
+            <div class="flex justify-between items-center mb-6 px-2">
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-800 tracking-tight">きろく</h2>
+                    <div class="h-1 w-12 bg-sky-400 rounded-full mt-1"></div>
+                </div>
+                <div class="flex items-center gap-3 text-right">
+                    <span class="text-[9px] font-bold text-slate-400 opacity-70 leading-none uppercase">Session logs only</span>
+                    <button id="clearLogs" class="p-2 text-slate-400 hover:text-rose-500 transition-colors focus:outline-none">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="logContainer" class="log-container mb-24">
+                <div id="logList" class="flex flex-col">
+                    <div id="emptyMsg" class="text-center py-24 opacity-40">
+                        <p class="text-sm font-bold tracking-widest uppercase">データがありません</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="text-center shrink-0 py-4 opacity-40 text-[10px] font-medium tracking-wide">
+        ストップウォッチ | Ver 2.5 | ota tools
+    </footer>
+
+    <script>
+        let startTime;
+        let elapsedTime = 0;
+        let timerInterval;
+        let isRunning = false;
+        let logs = [];
+
+        const body = document.body;
+        const themeToggle = document.getElementById('themeToggle');
+        const sunIcon = document.getElementById('sunIcon');
+        const moonIcon = document.getElementById('moonIcon');
+
+        const elMin = document.getElementById('min');
+        const elSec = document.getElementById('sec');
+        const elMsec = document.getElementById('msec');
+        const startStopBtn = document.getElementById('startStopBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const timerSection = document.getElementById('timerSection');
+        const logsSection = document.getElementById('logsSection');
+        const tabTimer = document.getElementById('tabTimer');
+        const tabLogs = document.getElementById('tabLogs');
+        const logList = document.getElementById('logList');
+        const clearLogsBtn = document.getElementById('clearLogs');
+        
+        const modalOverlay = document.getElementById('modalOverlay');
+        const confirmDelete = document.getElementById('confirmDelete');
+        const cancelDelete = document.getElementById('cancelDelete');
+
+        themeToggle.addEventListener('click', () => {
+            body.classList.toggle('dark-mode');
+            const isDark = body.classList.contains('dark-mode');
+            sunIcon.classList.toggle('hidden', isDark);
+            moonIcon.classList.toggle('hidden', !isDark);
+        });
+
+        function switchTab(to) {
+            if (to === 'timer') {
+                tabTimer.classList.add('active');
+                tabLogs.classList.remove('active');
+                timerSection.classList.remove('hidden');
+                logsSection.classList.add('hidden');
+            } else {
+                tabLogs.classList.add('active');
+                tabTimer.classList.remove('active');
+                logsSection.classList.remove('hidden');
+                timerSection.classList.add('hidden');
+            }
+        }
+
+        tabTimer.addEventListener('click', () => switchTab('timer'));
+        tabLogs.addEventListener('click', () => switchTab('logs'));
+
+        function updateDisplay(time) {
+            let mm = Math.floor(time / 60000);
+            let ss = Math.floor((time % 60000) / 1000);
+            let ms = Math.floor((time % 1000) / 10);
+            elMin.innerText = mm.toString().padStart(2, "0");
+            elSec.innerText = ss.toString().padStart(2, "0");
+            elMsec.innerText = ms.toString().padStart(2, "0");
+        }
+
+        function toggleStartStop() {
+            if (!isRunning) {
+                startTime = Date.now() - elapsedTime;
+                timerInterval = setInterval(() => {
+                    elapsedTime = Date.now() - startTime;
+                    updateDisplay(elapsedTime);
+                }, 10);
+                startStopBtn.innerText = "ストップ";
+                startStopBtn.classList.replace('btn-start', 'btn-stop');
+                isRunning = true;
+            } else {
+                clearInterval(timerInterval);
+                startStopBtn.innerText = "スタート";
+                startStopBtn.classList.replace('btn-stop', 'btn-start');
+                isRunning = false;
+                if (elapsedTime > 0) saveLog();
+            }
+        }
+
+        function reset() {
+            clearInterval(timerInterval);
+            elapsedTime = 0;
+            updateDisplay(0);
+            isRunning = false;
+            startStopBtn.innerText = "スタート";
+            startStopBtn.classList.remove('btn-stop');
+            startStopBtn.classList.add('btn-start');
+        }
+
+        function saveLog() {
+            const m = elMin.innerText;
+            const s = elSec.innerText;
+            const ms = elMsec.innerText;
+            const now = new Date();
+            const timestamp = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
+            logs.push({ m, s, ms, timestamp });
+            updateLogUI();
+        }
+
+        function updateLogUI() {
+            const emptyMsg = document.getElementById('emptyMsg');
+            if (emptyMsg) emptyMsg.remove();
+            
+            const lastLog = logs[logs.length - 1];
+            const div = document.createElement('div');
+            div.className = "log-item flex justify-between items-center py-3 px-5 fade-in";
+            div.innerHTML = `
+                <div class="flex flex-col">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-800 text-sky-500 uppercase tracking-tighter">${logs.length}回目</span>
+                        <span class="text-[9px] font-bold opacity-30">${lastLog.timestamp}</span>
+                    </div>
+                </div>
+                <div class="text-xl font-800 tracking-tight opacity-80 flex items-baseline tabular-nums">
+                    ${lastLog.m}<span class="text-[9px] opacity-40 mx-0.5 font-medium">分</span>
+                    ${lastLog.s}<span class="text-[9px] opacity-40 mx-0.5 font-medium">秒</span>
+                    <span class="text-sky-500 text-base ml-1 font-bold">${lastLog.ms}</span>
+                </div>
+            `;
+            logList.insertBefore(div, logList.firstChild);
+        }
+
+        clearLogsBtn.addEventListener('click', () => {
+            if (logs.length > 0) modalOverlay.classList.remove('hidden');
+        });
+
+        confirmDelete.addEventListener('click', () => {
+            logs = [];
+            logList.innerHTML = `<div id="emptyMsg" class="text-center py-24 opacity-40"><p class="text-sm font-bold tracking-widest uppercase">データがありません</p></div>`;
+            modalOverlay.classList.add('hidden');
+        });
+
+        cancelDelete.addEventListener('click', () => {
+            modalOverlay.classList.add('hidden');
+        });
+
+        startStopBtn.addEventListener("click", toggleStartStop);
+        resetBtn.addEventListener("click", reset);
+
+        window.addEventListener("keydown", (e) => {
+            if (e.code === "Space") {
+                e.preventDefault();
+                toggleStartStop();
+            } else if (e.code === "Enter") {
+                e.preventDefault();
+                reset();
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            document.body.style.height = window.innerHeight + 'px';
+        });
+        window.dispatchEvent(new Event('resize'));
+    </script>
+
+</body></html>
