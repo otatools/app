@@ -606,6 +606,15 @@ h1{ font-size:1.5rem; text-align:center; letter-spacing:.05em; }
 }
 .wa-start:disabled::after{ border-color:#cdc4ac; }
 
+/* ---- デバッグ：場札イラスト一覧（?debug=cards で表示） ---- */
+.debug-cards-meta{ text-align:center; font-size:.8rem; color:#6b5c42; padding-bottom:8px; flex:0 0 auto; }
+.debug-cards-grid{
+  flex:1 1 auto; min-height:0; overflow-y:auto;
+  display:flex; flex-wrap:wrap; gap:10px 8px; justify-content:center; align-content:flex-start;
+  padding:4px 4px 24px;
+}
+.debug-card-cell{ width:100px; height:218px; flex:0 0 auto; }
+
 </style>
 </head>
 <body>
@@ -811,6 +820,12 @@ h1{ font-size:1.5rem; text-align:center; letter-spacing:.05em; }
     </div>
   </section>
 
+  <section id="debug-cards-screen" class="screen">
+    <h1>場札プレビュー（デバッグ）</h1>
+    <div class="debug-cards-meta" id="debug-cards-meta"></div>
+    <div class="debug-cards-grid" id="debug-cards-grid"></div>
+  </section>
+
 </div>
 
 <div id="toast"></div>
@@ -818,6 +833,10 @@ h1{ font-size:1.5rem; text-align:center; letter-spacing:.05em; }
 <script>
 (function(){
 "use strict";
+
+/* URLに ?debug=cards を付けて開くと、全カードを場札の見た目のまま一覧表示する
+   （イラストの切り抜き位置などを確認するためのデバッグ機能） */
+var DEBUG_CARDS = /(?:^|[?&])debug=cards(?:&|$)/.test(location.search);
 
 /* ============================================================
    0. 初期化まわり（拡大防止・高さ対応・保険）
@@ -867,9 +886,13 @@ window.addEventListener('load', function(){
     requestAnimationFrame(function(){
       document.getElementById('app').classList.add('ready');
     });
+    if(DEBUG_CARDS){
+      renderDebugCardsScreen();
+      showScreen('debug-cards-screen');
+    }
   }
   T(revealOnce, 1400);   // 保険：明朝体が届かなくても必ず表示する
-  T(tryResumeSession, 400);   // 読みなおす前に部屋に入っていたら、その部屋へもどる
+  if(!DEBUG_CARDS) T(tryResumeSession, 400);   // 読みなおす前に部屋に入っていたら、その部屋へもどる
   if(document.fonts && document.fonts.ready){
     document.fonts.ready.then(function(){ T(revealOnce, 300); }, function(){ T(revealOnce, 300); });
   } else {
@@ -2953,6 +2976,20 @@ function renderGame(dealAnimate, onDealDone){
     renderHandSolo();
     hint.textContent = game.current ? (game.current.name + ' を年表のどこに置くか ▲ をタップ／指でドラッグ') : '';
   }
+}
+
+/* ============================================================
+   10. デバッグ：場札イラスト一覧（?debug=cards）
+   ============================================================ */
+function renderDebugCardsScreen(){
+  var list = CHARACTERS.slice().sort(function(a, b){ return a.year - b.year; });
+  var eCount = list.filter(function(c){ return c.grade === 'e'; }).length;
+  var mCount = list.length - eCount;
+  document.getElementById('debug-cards-meta').textContent =
+    '全' + list.length + '枚（小学:' + eCount + ' / 中学追加:' + mCount + '）';
+  document.getElementById('debug-cards-grid').innerHTML = list.map(function(c){
+    return '<div class="debug-card-cell"><div class="tl-card">' + cardInnerHtml(c) + '</div></div>';
+  }).join('');
 }
 
 })();
