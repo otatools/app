@@ -163,7 +163,11 @@ h1{ font-size:1.5rem; text-align:center; letter-spacing:.05em; }
    カードの中身はすべて --handw からの比率で作ってあるので、縮んでも見た目の比率は変わらない。 */
 .hand-row{
   display:flex; flex-wrap:wrap; justify-content:center; align-content:flex-end;
-  gap:var(--handgap, 12px); overflow-x:auto;
+  column-gap:var(--handgap, 12px);
+  /* 2段になったとき、下の段のカードを選択して持ち上げた(.selectedのtranslateY+scale)ときに
+     上の段のカードと重ならないよう、縦方向のすき間はカードの大きさに応じて広めに取る */
+  row-gap:var(--handrowgap, 28px);
+  overflow-x:auto;
   padding:34px 4px 10px; align-items:flex-end;
 }
 .hand-card{
@@ -2738,6 +2742,7 @@ function fitHandCards(){
   if(n === 0){
     row.style.removeProperty('--handw');
     row.style.removeProperty('--handgap');
+    row.style.removeProperty('--handrowgap');
     row.classList.remove('hand-compact');
     return;
   }
@@ -2751,6 +2756,10 @@ function fitHandCards(){
   w = Math.max(52, Math.min(190, w));                 // 小さすぎても大きすぎてもだめ
   row.style.setProperty('--handgap', gap + 'px');
   row.style.setProperty('--handw', w + 'px');
+  /* 段の間の縦のすき間。.selectedで持ち上がる分(translateY(-16px)+scale(1.14))を
+     上の段のカードとぶつからないように、カードの大きさに応じて広めに確保する */
+  function applyRowGap(){ row.style.setProperty('--handrowgap', Math.round(w * .15 + 16) + 'px'); }
+  applyRowGap();
 
   // 横幅から決めた大きさだと縦にはみ出す（文章が読み切れない）ときは、
   // 収まる大きさまで少しずつ縮める。画面上のあまった余白もこれで手札に回る。
@@ -2760,6 +2769,7 @@ function fitHandCards(){
     while(w > 52 && row.scrollHeight > availH && guard < 40){
       w -= 4;
       row.style.setProperty('--handw', w + 'px');
+      applyRowGap();
       guard++;
     }
   }
