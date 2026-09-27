@@ -64,7 +64,9 @@ h1{ font-size:1.5rem; text-align:center; letter-spacing:.05em; }
 .hud .deck-count{ font-size:.75rem; color:#6b5c42; }
 
 #timeline-wrap{
-  flex:1 1 0; min-height:0; max-height:480px; overflow-x:auto; overflow-y:hidden;
+  /* min-heightは場札(tl-grid: 218px+34pxの行+すき間+余白)が絶対に欠けない高さ。
+     手札欄を大きくするために縮めてよいのはここまで。 */
+  flex:1 1 0; min-height:280px; max-height:480px; overflow-x:auto; overflow-y:hidden;
   display:flex; align-items:center; padding:6px 12px;
   background:repeating-linear-gradient(90deg,transparent,transparent 40px,rgba(184,134,11,.08) 40px,rgba(184,134,11,.08) 41px);
   scrollbar-width:none; -ms-overflow-style:none;   /* 下にデザイン済みのスクロールバーを別途用意するので、素のバーは隠す */
@@ -2767,7 +2769,7 @@ function fitHandCards(){
   if(availH){
     var guard = 0;
     while(w > 52 && row.scrollHeight > availH && guard < 40){
-      w -= 4;
+      w = Math.max(52, w - 4);
       row.style.setProperty('--handw', w + 'px');
       applyRowGap();
       guard++;
@@ -3026,10 +3028,12 @@ function renderGame(dealAnimate, onDealDone){
     }, dealAnimate);
     renderHandOnline(me, myTurn);
     renderPlayerStrip(r);
-    hint.textContent = (r.status === 'finished') ? ''
-      : !myTurn ? ((cur ? cur.name : '') + 'さんが考えています…')
+    // 誰の番かはHUD(turn-label)にすでに出ているので、ここでは繰り返さない
+    // （繰り返さないぶん、場札と手札のあいだを詰められる）
+    hint.textContent = (r.status === 'finished' || !myTurn) ? ''
       : sel ? (sel.name + ' を年表のどこに置くか ▲ をタップ／指でドラッグ')
             : '手札のカードを選んでね(タップ or ドラッグ)';
+    hint.hidden = !hint.textContent;
   } else {
     document.getElementById('player-strip').hidden = true;
     renderTimeline(function(gapIndex, gapEl){
@@ -3038,6 +3042,7 @@ function renderGame(dealAnimate, onDealDone){
     }, dealAnimate, onDealDone);
     renderHandSolo();
     hint.textContent = game.current ? (game.current.name + ' を年表のどこに置くか ▲ をタップ／指でドラッグ') : '';
+    hint.hidden = !hint.textContent;
   }
 }
 
