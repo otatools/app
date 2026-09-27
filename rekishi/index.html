@@ -162,16 +162,14 @@ h1{ font-size:1.5rem; text-align:center; letter-spacing:.05em; }
 /* 手札の幅(--handw)は、手札の枚数と画面の幅から JS が計算して入れる。
    カードの中身はすべて --handw からの比率で作ってあるので、縮んでも見た目の比率は変わらない。 */
 .hand-row{
-  display:flex; gap:var(--handgap, 12px); overflow-x:auto; overflow-y:hidden;
+  display:flex; flex-wrap:wrap; justify-content:center; align-content:flex-end;
+  gap:var(--handgap, 12px); overflow-x:auto;
   padding:34px 4px 10px; align-items:flex-end;
 }
-.hand-row > *:first-child{ margin-left:auto; }   /* 中央ぞろえ（はみ出すときは 0 になる） */
-.hand-row > *:last-child{ margin-right:auto; }
 .hand-card{
   flex:0 0 auto;
   width:var(--handw, 132px);
-  height:max(calc(var(--handw, 132px) * 1.26), 92px);   /* 細いカードでも中身が入る高さを確保 */
-  overflow:hidden;
+  min-height:max(calc(var(--handw, 132px) * 1.26), 92px);   /* 細いカードでも中身が入る高さを確保。文章が長いカードはここより伸びる */
   border-radius:calc(var(--handw, 132px) * .121); border:2px solid var(--line);
   background:var(--card); display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
   padding:calc(var(--handw, 132px) * .028) calc(var(--handw, 132px) * .028) calc(var(--handw, 132px) * .061);
@@ -191,9 +189,9 @@ h1{ font-size:1.5rem; text-align:center; letter-spacing:.05em; }
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;
 }
 .hand-card .name{ font-weight:700; font-size:1.32em; line-height:1.25; padding:0 calc(var(--handw, 132px) * .033); }
+.hand-card.name-tight .name{ font-size:1.02em; }
 .hand-card .event{
   font-size:.945em; color:#6b5c42; line-height:1.25; margin-top:.5em;
-  display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
   padding:0 calc(var(--handw, 132px) * .033);
   align-self:stretch; text-align:left;
 }
@@ -2713,10 +2711,30 @@ function updateTlScrollbar(){
 
 /* 手札が画面の幅に収まるように、カードの大きさを実測して決める。
    これをしないと、スマホで4〜5枚のときに右端がはみ出して左寄せになってしまう。 */
+/* 縦方向にどれだけ余裕があるか実測する。#game-screen の中で手札欄以外が
+   使っている高さ（HUD・対戦相手一覧・年表・ヒント文）を差し引いた残りが、
+   手札欄が使ってよい高さになる。 */
+function availHandHeight(){
+  var gameScreen = document.getElementById('game-screen');
+  var wrap = document.getElementById('hand-wrap');
+  if(!gameScreen || !wrap) return null;
+  var used = 0;
+  ['.hud', '#player-strip', '#timeline-wrap', '#tl-scrollbar', '#hint-bar'].forEach(function(sel){
+    var el = document.querySelector(sel);
+    if(el && !el.hidden) used += el.getBoundingClientRect().height;
+  });
+  var gsStyle = getComputedStyle(gameScreen);
+  var innerH = gameScreen.clientHeight - parseFloat(gsStyle.paddingTop) - parseFloat(gsStyle.paddingBottom);
+  var wrapStyle = getComputedStyle(wrap);
+  var wrapPad = parseFloat(wrapStyle.paddingTop) + parseFloat(wrapStyle.paddingBottom);
+  return innerH - used - wrapPad;
+}
+
 function fitHandCards(){
   var row = document.getElementById('hand-row');
   if(!row) return;
-  var n = row.querySelectorAll('.hand-card').length;
+  var cards = row.querySelectorAll('.hand-card');
+  var n = cards.length;
   if(n === 0){
     row.style.removeProperty('--handw');
     row.style.removeProperty('--handgap');
@@ -2724,14 +2742,37 @@ function fitHandCards(){
     return;
   }
   var avail = row.clientWidth - 8;                    // 左右のパディングぶん
-  var gap = (n >= 5) ? 8 : 12;
-  var w = Math.floor((avail - gap * (n - 1)) / n);
-  if(w < 78 && gap > 8){ gap = 8;  w = Math.floor((avail - gap * (n - 1)) / n); }
-  if(w < 68 && gap > 6){ gap = 6;  w = Math.floor((avail - gap * (n - 1)) / n); }
-  w = Math.max(52, Math.min(132, w));                 // 小さすぎても大きすぎてもだめ
-  row.style.setProperty('--handw', w + 'px');
+  // 4枚以上のときは2段に折り返して並べる（1段あたりの枚数が減るぶん、1枚を大きくできる）
+  var cols = (n <= 3) ? n : Math.ceil(n / 2);
+  var gap = (cols >= 5) ? 8 : 12;
+  var w = Math.floor((avail - gap * (cols - 1)) / cols);
+  if(w < 78 && gap > 8){ gap = 8;  w = Math.floor((avail - gap * (cols - 1)) / cols); }
+  if(w < 68 && gap > 6){ gap = 6;  w = Math.floor((avail - gap * (cols - 1)) / cols); }
+  w = Math.max(52, Math.min(190, w));                 // 小さすぎても大きすぎてもだめ
   row.style.setProperty('--handgap', gap + 'px');
+  row.style.setProperty('--handw', w + 'px');
+
+  // 横幅から決めた大きさだと縦にはみ出す（文章が読み切れない）ときは、
+  // 収まる大きさまで少しずつ縮める。画面上のあまった余白もこれで手札に回る。
+  var availH = availHandHeight();
+  if(availH){
+    var guard = 0;
+    while(w > 52 && row.scrollHeight > availH && guard < 40){
+      w -= 4;
+      row.style.setProperty('--handw', w + 'px');
+      guard++;
+    }
+  }
   row.classList.toggle('hand-compact', w < 72);
+
+  // 名前が2段に折り返されてしまったカードだけ、文字を少し小さくして1段に収める
+  cards.forEach(function(el){
+    var nameEl = el.querySelector('.name');
+    if(!nameEl) return;
+    el.classList.remove('name-tight');
+    var oneLine = parseFloat(getComputedStyle(nameEl).lineHeight) * 1.5;
+    if(nameEl.scrollHeight > oneLine) el.classList.add('name-tight');
+  });
 }
 
 function renderHandOnline(me, myTurn){
