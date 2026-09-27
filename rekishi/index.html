@@ -164,8 +164,12 @@ h1{ font-size:1.5rem; text-align:center; letter-spacing:.05em; }
 
 #hand-wrap{ flex:0 0 auto; padding:10px 12px 16px; }
 @media (max-width:600px){
-  /* スマホ幅では左右の余白を切りつめて、そのぶん手札のカードを大きくする */
-  #hand-wrap{ padding-left:4px; padding-right:4px; }
+  /* スマホ幅では画面の左右の余白を極力なくして、そのぶん手札・場札のカードを大きくする
+     （PC・タブレット幅にはいっさい影響しない） */
+  #hand-wrap{ padding-left:2px; padding-right:2px; }
+  .hand-row{ padding-left:2px; padding-right:2px; }
+  .hud{ padding-left:6px; padding-right:6px; }
+  #timeline-wrap{ padding-left:4px; padding-right:4px; }
 }
 /* 手札の幅(--handw)は、手札の枚数と画面の幅から JS が計算して入れる。
    カードの中身はすべて --handw からの比率で作ってあるので、縮んでも見た目の比率は変わらない。 */
@@ -183,9 +187,7 @@ h1{ font-size:1.5rem; text-align:center; letter-spacing:.05em; }
 .hand-card{
   flex:0 0 auto;
   width:var(--handw, 132px);
-  /* JSが「今の幅でどのカードが来ても収まる高さ」を測って入れる。
-     手札の中身（＝どのカードが来るか）によって段の高さが毎回変わらないようにするため。 */
-  height:var(--handfixedh, max(calc(var(--handw, 132px) * 1.26), 92px));
+  min-height:max(calc(var(--handw, 132px) * 1.26), 92px);   /* 細いカードでも中身が入る高さを確保。文章が長いカードはここより伸びる */
   border-radius:calc(var(--handw, 132px) * .121); border:2px solid var(--line);
   background:var(--card); display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
   padding:calc(var(--handw, 132px) * .028) calc(var(--handw, 132px) * .028) calc(var(--handw, 132px) * .061);
@@ -2746,46 +2748,6 @@ function availHandHeight(){
   return innerH - used - wrapPad;
 }
 
-/* 手札の段の高さを「今どのカードが来ても収まる高さ」に固定するための、
-   見本カード（achievementが長いもの・nameが長いものの上位）。
-   全112枚を毎回測るのは重いので、いちばん長くなりそうなものだけに絞ってある。 */
-var HAND_PROBE_CARDS = null;
-function getHandProbeCards(){
-  if(HAND_PROBE_CARDS) return HAND_PROBE_CARDS;
-  var byAchievement = CHARACTERS.slice().sort(function(a, b){ return b.achievement.length - a.achievement.length; });
-  var byName = CHARACTERS.slice().sort(function(a, b){ return b.name.length - a.name.length; });
-  var picked = {};
-  byAchievement.slice(0, 6).forEach(function(c){ picked[c.id] = c; });
-  byName.slice(0, 3).forEach(function(c){ picked[c.id] = c; });
-  HAND_PROBE_CARDS = Object.keys(picked).map(function(id){ return picked[id]; });
-  return HAND_PROBE_CARDS;
-}
-var handProbeEl = null;
-/* 幅wのとき、見本カードのうちいちばん高さが必要なものを実測する
-   （名前が2段になるものは.name-tightを試したうえでの高さにする）。 */
-function measureFixedHandHeight(w){
-  if(!handProbeEl){
-    handProbeEl = document.createElement('div');
-    handProbeEl.style.cssText = 'position:fixed; visibility:hidden; left:-9999px; top:0;';
-    document.body.appendChild(handProbeEl);
-  }
-  handProbeEl.className = 'hand-card';
-  handProbeEl.style.width = w + 'px';
-  handProbeEl.style.height = 'auto';
-  var maxH = 0;
-  getHandProbeCards().forEach(function(c){
-    handProbeEl.classList.remove('name-tight');
-    handProbeEl.innerHTML = handCardInnerHtml(c);
-    var nameEl = handProbeEl.querySelector('.name');
-    if(nameEl && nameEl.scrollHeight > parseFloat(getComputedStyle(nameEl).lineHeight) * 1.5){
-      handProbeEl.classList.add('name-tight');
-    }
-    var h = handProbeEl.getBoundingClientRect().height;
-    if(h > maxH) maxH = h;
-  });
-  return Math.ceil(maxH);
-}
-
 function fitHandCards(){
   var row = document.getElementById('hand-row');
   if(!row) return;
@@ -2795,7 +2757,6 @@ function fitHandCards(){
     row.style.removeProperty('--handw');
     row.style.removeProperty('--handgap');
     row.style.removeProperty('--handrowgap');
-    row.style.removeProperty('--handfixedh');
     row.classList.remove('hand-compact');
     return;
   }
@@ -2804,33 +2765,31 @@ function fitHandCards(){
   var isNarrow = window.innerWidth <= 600;
   // 4枚以上のときは2段に折り返して並べる（1段あたりの枚数が減るぶん、1枚を大きくできる）
   var cols = (n <= 3) ? n : Math.ceil(n / 2);
-  var rows = Math.ceil(n / cols);
-  var gap = isNarrow ? ((cols >= 5) ? 4 : 6) : ((cols >= 5) ? 8 : 12);
+  var gap = isNarrow ? ((cols >= 5) ? 2 : 3) : ((cols >= 5) ? 8 : 12);
   var w = Math.floor((avail - gap * (cols - 1)) / cols);
-  if(w < 78 && gap > 4){ gap = isNarrow ? 3 : 8;  w = Math.floor((avail - gap * (cols - 1)) / cols); }
-  if(w < 68 && gap > 3){ gap = isNarrow ? 2 : 6;  w = Math.floor((avail - gap * (cols - 1)) / cols); }
+  if(w < 78 && gap > 2 && !isNarrow){ gap = 8;  w = Math.floor((avail - gap * (cols - 1)) / cols); }
+  if(w < 68 && gap > 2 && !isNarrow){ gap = 6;  w = Math.floor((avail - gap * (cols - 1)) / cols); }
   w = Math.max(52, Math.min(190, w));                 // 小さすぎても大きすぎてもだめ
   row.style.setProperty('--handgap', gap + 'px');
-
+  row.style.setProperty('--handw', w + 'px');
   /* 段の間の縦のすき間。.selectedで持ち上がる分(translateY(-16px)+scale(1.14))を
-     上の段のカードとぶつからないように、実測した段の高さから必要な分だけ確保する */
-  function clearanceFor(h){ return Math.ceil(16 + h * .08) + 3; }
+     上の段のカードとぶつからないように、カードの大きさに応じて広めに確保する
+     （スマホでは少し切りつめるが、ぶつからない分は必ず残す） */
+  function applyRowGap(){ row.style.setProperty('--handrowgap', Math.round(w * (isNarrow ? .12 : .15) + (isNarrow ? 15 : 16)) + 'px'); }
+  applyRowGap();
 
-  // 見本カードで測った「このカードなら絶対収まる高さ」で、段数ぶんが画面に入るまで
-  // 幅を少しずつ縮める。画面上のあまった余白もこれで手札に回る。
+  // 横幅から決めた大きさだと縦にはみ出す（文章が読み切れない）ときは、
+  // 収まる大きさまで少しずつ縮める。画面上のあまった余白もこれで手札に回る。
   var availH = availHandHeight();
-  var fixedH = measureFixedHandHeight(w);
   if(availH){
     var guard = 0;
-    while(w > 52 && (rows * fixedH + (rows - 1) * clearanceFor(fixedH)) > availH && guard < 40){
+    while(w > 52 && row.scrollHeight > availH && guard < 40){
       w = Math.max(52, w - 4);
-      fixedH = measureFixedHandHeight(w);
+      row.style.setProperty('--handw', w + 'px');
+      applyRowGap();
       guard++;
     }
   }
-  row.style.setProperty('--handw', w + 'px');
-  row.style.setProperty('--handfixedh', fixedH + 'px');
-  row.style.setProperty('--handrowgap', clearanceFor(fixedH) + 'px');
   row.classList.toggle('hand-compact', w < 72);
 
   // 名前が2段に折り返されてしまったカードだけ、文字を少し小さくして1段に収める
