@@ -172,7 +172,9 @@ h1{ font-size:1.5rem; text-align:center; letter-spacing:.05em; }
      上の段のカードと重ならないよう、縦方向のすき間はカードの大きさに応じて広めに取る */
   row-gap:var(--handrowgap, 28px);
   overflow-x:auto;
-  padding:34px 4px 10px; align-items:flex-end;
+  /* 文章の長さでカードごとに高さが変わってしまうので、同じ段のカードは
+     いちばん背の高いカードに高さをそろえる（下ぞろえだと上端がガタガタになる） */
+  padding:34px 4px 10px; align-items:stretch;
 }
 .hand-card{
   flex:0 0 auto;
