@@ -64,9 +64,11 @@ h1{ font-size:1.5rem; text-align:center; letter-spacing:.05em; }
 .hud .deck-count{ font-size:.75rem; color:#6b5c42; }
 
 #timeline-wrap{
-  /* min-heightは場札(tl-grid: 218px+34pxの行+すき間+余白)が絶対に欠けない高さ。
-     手札欄を大きくするために縮めてよいのはここまで。 */
-  flex:1 1 0; min-height:280px; max-height:480px; overflow-x:auto; overflow-y:hidden;
+  /* 場札は常に同じ高さ(tl-grid: 218px+34pxの行+すき間+余白 ≒267px)なので、
+     flex-growはさせない。伸びる余地を余らせたままにすると、その分だけ
+     手札欄が縮む余地だと誤認して手札を必要以上に小さくしてしまう。
+     min-heightは、それでも場札が絶対に欠けない高さの保険。 */
+  flex:0 1 auto; min-height:280px; max-height:480px; overflow-x:auto; overflow-y:hidden;
   display:flex; align-items:center; padding:6px 12px;
   background:repeating-linear-gradient(90deg,transparent,transparent 40px,rgba(184,134,11,.08) 40px,rgba(184,134,11,.08) 41px);
   scrollbar-width:none; -ms-overflow-style:none;   /* 下にデザイン済みのスクロールバーを別途用意するので、素のバーは隠す */
