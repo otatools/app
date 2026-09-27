@@ -163,6 +163,10 @@ h1{ font-size:1.5rem; text-align:center; letter-spacing:.05em; }
 .tl-marker-btn.drag-over{ background:#ffe08a; transform:scale(1.35); box-shadow:0 0 0 4px rgba(184,134,11,.25); }
 
 #hand-wrap{ flex:0 0 auto; padding:10px 12px 16px; }
+@media (max-width:600px){
+  /* スマホ幅では左右の余白を切りつめて、そのぶん手札のカードを大きくする */
+  #hand-wrap{ padding-left:6px; padding-right:6px; }
+}
 /* 手札の幅(--handw)は、手札の枚数と画面の幅から JS が計算して入れる。
    カードの中身はすべて --handw からの比率で作ってあるので、縮んでも見た目の比率は変わらない。 */
 .hand-row{
@@ -2753,18 +2757,21 @@ function fitHandCards(){
     return;
   }
   var avail = row.clientWidth - 8;                    // 左右のパディングぶん
+  // スマホ幅では、カード間の余白を切りつめて、そのぶんカード自体を大きくする
+  var isNarrow = window.innerWidth <= 600;
   // 4枚以上のときは2段に折り返して並べる（1段あたりの枚数が減るぶん、1枚を大きくできる）
   var cols = (n <= 3) ? n : Math.ceil(n / 2);
-  var gap = (cols >= 5) ? 8 : 12;
+  var gap = isNarrow ? ((cols >= 5) ? 6 : 8) : ((cols >= 5) ? 8 : 12);
   var w = Math.floor((avail - gap * (cols - 1)) / cols);
-  if(w < 78 && gap > 8){ gap = 8;  w = Math.floor((avail - gap * (cols - 1)) / cols); }
-  if(w < 68 && gap > 6){ gap = 6;  w = Math.floor((avail - gap * (cols - 1)) / cols); }
+  if(w < 78 && gap > 6){ gap = isNarrow ? 4 : 8;  w = Math.floor((avail - gap * (cols - 1)) / cols); }
+  if(w < 68 && gap > 4){ gap = 4;  w = Math.floor((avail - gap * (cols - 1)) / cols); }
   w = Math.max(52, Math.min(190, w));                 // 小さすぎても大きすぎてもだめ
   row.style.setProperty('--handgap', gap + 'px');
   row.style.setProperty('--handw', w + 'px');
   /* 段の間の縦のすき間。.selectedで持ち上がる分(translateY(-16px)+scale(1.14))を
-     上の段のカードとぶつからないように、カードの大きさに応じて広めに確保する */
-  function applyRowGap(){ row.style.setProperty('--handrowgap', Math.round(w * .15 + 16) + 'px'); }
+     上の段のカードとぶつからないように、カードの大きさに応じて広めに確保する
+     （スマホでは少し切りつめるが、ぶつからない分は必ず残す） */
+  function applyRowGap(){ row.style.setProperty('--handrowgap', Math.round(w * (isNarrow ? .12 : .15) + (isNarrow ? 15 : 16)) + 'px'); }
   applyRowGap();
 
   // 横幅から決めた大きさだと縦にはみ出す（文章が読み切れない）ときは、
