@@ -1487,11 +1487,21 @@ function buildDeck(){
   return shuffle(pool);
 }
 
-/* 正しい挿入位置(ギャップindex)を、現在のtimeline(年代昇順配列)から求める */
+/* 正しい挿入位置(ギャップindex)を、現在のtimeline(年代昇順配列)から求める。
+   同じ年のカードが複数ある場合、この関数はその中でいちばん右のギャップを返す
+   （実際にカードを差し込む位置として使う分にはどこでも同じ結果になる）。 */
 function correctGapIndex(timeline, year){
   var idx = 0;
   while(idx < timeline.length && timeline[idx].year <= year) idx++;
   return idx;
+}
+/* 置いたギャップが正解かどうかを判定する。同じ年のカードが隣り合っている場合、
+   その年のカードたちの間のどのギャップに置いても正解にする
+   （左右どちらでも年代の並びとしては正しいため）。 */
+function isCorrectGapIndex(timeline, year, gapIndex){
+  var leftOk = (gapIndex === 0) || (timeline[gapIndex - 1].year <= year);
+  var rightOk = (gapIndex === timeline.length) || (timeline[gapIndex].year >= year);
+  return leftOk && rightOk;
 }
 
 /* ============================================================
@@ -2064,7 +2074,7 @@ function computeMove(r, pi, cardId, gapIndex){
   var card = CARD_BY_ID[cardId];
   var tlCards = (r.timeline || []).map(function(id){ return CARD_BY_ID[id]; });
   var correctIdx = correctGapIndex(tlCards, card.year);
-  var correct = (gapIndex === correctIdx);
+  var correct = isCorrectGapIndex(tlCards, card.year, gapIndex);
   var players = (r.players || []).map(function(p){
     return { key: p.key, name: p.name, hand: (p.hand || []).slice(), misses: p.misses || 0 };
   });
@@ -2422,13 +2432,13 @@ function handleSoloPlacement(gapIndex, gapEl, sourceEl, ghostEl){
   if(uiLocked) return;
   uiLocked = true;
   var card = game.current;
-  var correct = correctGapIndex(game.timeline, card.year);
+  var correctIdx = correctGapIndex(game.timeline, card.year);
 
-  if(gapIndex === correct){
+  if(isCorrectGapIndex(game.timeline, card.year, gapIndex)){
     showToast('正解！', 'ok');
     playJudgeMark(true);
     game.correctCount++;
-    insertCardWithAnimation(card, correct, sourceEl, function(){
+    insertCardWithAnimation(card, correctIdx, sourceEl, function(){
       finishSoloStep();
       uiLocked = false;
     }, ghostEl);
@@ -2439,7 +2449,7 @@ function handleSoloPlacement(gapIndex, gapEl, sourceEl, ghostEl){
   game.missCount++;
   showToast('残念…正しい位置に入れたよ', 'ng');
   playJudgeMark(false);
-  insertCardWithAnimation(card, correct, sourceEl, function(){
+  insertCardWithAnimation(card, correctIdx, sourceEl, function(){
     finishSoloStep();
     uiLocked = false;
   }, ghostEl);
