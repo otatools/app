@@ -149,7 +149,7 @@
                 <label>罫線</label>
                 <select id="ruledLinesInput" onchange="updateAll()">
                     <option value="on">有（画像にも表示）</option>
-                    <option value="off">無（画面のみ水色で表示）</option>
+                    <option value="off">無（画像で保存時）</option>
                 </select>
             </div>
         </div>
@@ -325,9 +325,10 @@
     }
 
     window.onload = async () => {
+        // 自動保存は初期状態ではON。明示的にOFFにしたことがある場合のみOFFのままにする
         if (await tryLoadSharedView()) {
             const autoSavePref = localStorage.getItem(AUTO_SAVE_KEY);
-            if (autoSavePref === 'true') {
+            if (autoSavePref !== 'false') {
                 isAutoSaveOn = true;
                 document.getElementById('btnAutoSave').innerText = '自動保存：ON';
                 document.getElementById('btnAutoSave').classList.add('on');
@@ -337,7 +338,7 @@
         }
 
         const autoSavePref = localStorage.getItem(AUTO_SAVE_KEY);
-        if (autoSavePref === 'true') {
+        if (autoSavePref !== 'false') {
             isAutoSaveOn = true;
             document.getElementById('btnAutoSave').innerText = '自動保存：ON';
             document.getElementById('btnAutoSave').classList.add('on');
