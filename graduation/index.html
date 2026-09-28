@@ -13,8 +13,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>卒業文集清書ツール v9.0</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@400;700&family=Kosugi+Maru&display=swap');
         @page { size: A4 landscape; margin: 0; }
         body { background: #f0f0f0; font-family: 'Noto Sans JP', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px 20px 0 20px; margin: 0; }
         
@@ -39,20 +40,40 @@
         .btn { padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: white; flex: 1; min-width: 100px; text-align: center; text-decoration: none; }
         .btn-save { background: #4CAF50; }
         .btn-load { background: #FF9800; }
-        .btn-print { background: #2196F3; flex: 2; font-size: 1.1em; }
+        .btn-image { background: #2196F3; flex: 2; font-size: 1.1em; }
+        .btn-share { background: #673AB7; }
         .btn-reset { background: #f44336; flex: 0.5; font-size: 0.8em; }
         .btn-auto-save { background: #9e9e9e; flex: 0.8; font-size: 0.85em; }
         .btn-auto-save.on { background: #4CAF50; }
 
+        /* 共有URLで開いたときは編集UIを隠し、画像保存だけ残す */
+        body.locked-mode .mode-selector,
+        body.locked-mode .config-panel,
+        body.locked-mode .input-group,
+        body.locked-mode .btn-save,
+        body.locked-mode .btn-load,
+        body.locked-mode #fileInput,
+        body.locked-mode .btn-share,
+        body.locked-mode .btn-auto-save,
+        body.locked-mode .btn-reset {
+            display: none !important;
+        }
+
         .footer-info { margin-top: 20px; margin-bottom: 40px; font-size: 12px; color: #888; text-align: center; }
 
         /* 原稿用紙設定 */
-        .paper { background: white; width: 297mm; height: 210mm; padding: 15mm 20mm; box-shadow: 0 0 15px rgba(0,0,0,0.2); display: flex; flex-direction: row-reverse; box-sizing: border-box; position: relative; }
+        .paper { background: white; width: 297mm; height: 210mm; padding: 15mm 20mm; box-shadow: 0 0 15px rgba(0,0,0,0.2); display: flex; flex-direction: row-reverse; box-sizing: border-box; position: relative; font-family: 'Noto Sans JP', sans-serif; }
         .paper:not(:last-child) { margin-bottom: 20px; }
+        .paper.font-mincho { font-family: 'Noto Serif JP', serif; }
+        .paper.font-maru { font-family: 'Kosugi Maru', 'Noto Sans JP', sans-serif; }
         .line { display: flex; flex-direction: column; height: 100%; position: relative; }
         .cell { border: 0.5px solid #ff8e8e; display: flex; align-items: center; justify-content: center; box-sizing: border-box; writing-mode: vertical-rl; -webkit-writing-mode: vertical-rl; text-orientation: upright; position: relative; }
-        
+
         .extra-cell { position: absolute; left: 0; width: 100%; display: flex; align-items: center; justify-content: center; writing-mode: vertical-rl; text-orientation: upright; pointer-events: none; border-top: none; }
+
+        /* 罫線「無」：画面上は水色の目安線、保存画像には出さない */
+        .paper.rule-off .cell, .paper.rule-off .extra-cell { border-color: #90CAF9; }
+        .paper.exporting.rule-off .cell, .paper.exporting.rule-off .extra-cell { border-color: transparent; }
 
         .force-rotate { display: inline-block !important; transform: rotate(90deg); line-height: 1; }
         .zenkaku-bracket { display: inline-block; transform: none !important; text-orientation: mixed; }
@@ -84,6 +105,19 @@
         <button id="btn-custom" class="mode-btn" onclick="switchMode('custom')">カスタム（自由設定）</button>
     </div>
 
+    <div class="config-panel font-selector">
+        <div class="config-grid">
+            <div class="config-group">
+                <label>フォント</label>
+                <select id="fontSelect" onchange="updateAll()">
+                    <option value="gothic">ゴシック体</option>
+                    <option value="mincho">明朝体</option>
+                    <option value="maru">丸ゴシック</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
     <div id="custom-configs" class="config-panel" style="display: none;">
         <div class="config-grid">
             <div class="config-group">
@@ -105,6 +139,21 @@
                 <label>名前の下の空きマス</label>
                 <input type="number" id="namePaddingInput" value="1" min="0" oninput="updateAll()">
             </div>
+            <div class="config-group">
+                <label>上部を空ける列数（左から）</label>
+                <input type="number" id="topBlankColsInput" value="0" min="0" oninput="updateAll()">
+            </div>
+            <div class="config-group">
+                <label>空ける行数（上から）</label>
+                <input type="number" id="topBlankRowsInput" value="0" min="0" oninput="updateAll()">
+            </div>
+            <div class="config-group">
+                <label>罫線</label>
+                <select id="ruledLinesInput" onchange="updateAll()">
+                    <option value="on">有（画像にも表示）</option>
+                    <option value="off">無（画面のみ水色で表示）</option>
+                </select>
+            </div>
         </div>
     </div>
 
@@ -125,7 +174,8 @@
         <button onclick="saveToFile()" class="btn btn-save">ファイル保存</button>
         <button onclick="document.getElementById('fileInput').click()" class="btn btn-load">ファイル読込</button>
         <input type="file" id="fileInput" style="display:none" accept=".txt" onchange="loadFromFile(event)">
-        <button onclick="window.print()" class="btn btn-print">印刷 / PDF保存</button>
+        <button onclick="saveAsImage()" id="btnSaveImage" class="btn btn-image">画像で保存（JPEG）</button>
+        <button onclick="createShareUrl()" class="btn btn-share">URLを作成</button>
         <button id="btnAutoSave" onclick="toggleAutoSave()" class="btn btn-auto-save">自動保存：OFF</button>
         <button onclick="resetData()" class="btn btn-reset">リセット</button>
     </div>
@@ -155,7 +205,47 @@
         if (el.value === DEFAULTS[key]) { el.value = ''; updateAll(); }
     }
 
+    // 共有URL（#view=...）で開かれた場合は、設定を復元した上で編集UIを隠す
+    function applySharedData(data) {
+        document.getElementById('titleInput').value = data.title || '';
+        document.getElementById('nameInput').value = data.name || '';
+        document.getElementById('textInput').value = data.body || '';
+        document.getElementById('rowsInput').value = data.rows || 22;
+        document.getElementById('colsInput').value = data.cols || 28;
+        document.getElementById('startColInput').value = data.startCol || 3;
+        document.getElementById('namePaddingInput').value = data.namePadding ?? 1;
+        document.getElementById('topBlankColsInput').value = data.topBlankCols ?? 0;
+        document.getElementById('topBlankRowsInput').value = data.topBlankRows ?? 0;
+        document.getElementById('ruledLinesInput').value = data.ruled || 'on';
+        document.getElementById('fontSelect').value = data.font || 'gothic';
+        currentMode = data.mode === 'custom' ? 'custom' : 'fix';
+        document.getElementById('btn-fix').className = currentMode === 'fix' ? 'mode-btn active' : 'mode-btn';
+        document.getElementById('btn-custom').className = currentMode === 'custom' ? 'mode-btn active' : 'mode-btn';
+        document.getElementById('titleLabel').innerText = currentMode === 'fix' ? '題名（8マス目から）' : '題名';
+    }
+
+    function tryLoadSharedView() {
+        if (!location.hash.startsWith('#view=')) return false;
+        try {
+            const encoded = location.hash.slice('#view='.length);
+            const json = decodeURIComponent(escape(atob(encoded)));
+            applySharedData(JSON.parse(json));
+            document.body.classList.add('locked-mode');
+            return true;
+        } catch (e) {
+            console.error('共有URLの読み込みに失敗しました:', e);
+            return false;
+        }
+    }
+
     window.onload = () => {
+        if (tryLoadSharedView()) {
+            // 共有ビューは閲覧専用。閲覧者自身の自動保存データを上書きしない。
+            generatePaper();
+            autoScalePaper();
+            return;
+        }
+
         const autoSavePref = localStorage.getItem(AUTO_SAVE_KEY);
         if (autoSavePref === 'true') {
             isAutoSaveOn = true;
@@ -178,6 +268,10 @@
             document.getElementById('colsInput').value = data.cols || 28;
             document.getElementById('startColInput').value = data.startCol || 3;
             document.getElementById('namePaddingInput').value = data.namePadding ?? 1;
+            document.getElementById('topBlankColsInput').value = data.topBlankCols ?? 0;
+            document.getElementById('topBlankRowsInput').value = data.topBlankRows ?? 0;
+            document.getElementById('ruledLinesInput').value = data.ruled || 'on';
+            document.getElementById('fontSelect').value = data.font || 'gothic';
             if (data.mode) switchMode(data.mode);
         } else {
             document.getElementById('titleInput').value = DEFAULTS.title;
@@ -216,7 +310,11 @@
             rows: document.getElementById('rowsInput').value,
             cols: document.getElementById('colsInput').value,
             startCol: document.getElementById('startColInput').value,
-            namePadding: document.getElementById('namePaddingInput').value
+            namePadding: document.getElementById('namePaddingInput').value,
+            topBlankCols: document.getElementById('topBlankColsInput').value,
+            topBlankRows: document.getElementById('topBlankRowsInput').value,
+            ruled: document.getElementById('ruledLinesInput').value,
+            font: document.getElementById('fontSelect').value
         };
         localStorage.setItem(KEY, JSON.stringify(data));
     }
@@ -248,6 +346,11 @@
         const COLS = currentMode === 'fix' ? 28 : (parseInt(document.getElementById('colsInput').value) || 28);
         const startCol = currentMode === 'fix' ? 3 : parseInt(document.getElementById('startColInput').value);
         const namePadding = currentMode === 'fix' ? 1 : parseInt(document.getElementById('namePaddingInput').value);
+        const topBlankCols = currentMode === 'fix' ? 2 : Math.max(0, parseInt(document.getElementById('topBlankColsInput').value) || 0);
+        const topBlankRows = currentMode === 'fix' ? 6 : Math.min(Math.max(0, parseInt(document.getElementById('topBlankRowsInput').value) || 0), ROWS - 1);
+        const ruled = currentMode === 'fix' ? 'on' : document.getElementById('ruledLinesInput').value;
+        const font = document.getElementById('fontSelect').value;
+        const fontClass = font === 'mincho' ? 'font-mincho' : (font === 'maru' ? 'font-maru' : '');
 
         const out = document.getElementById('output-container');
         out.innerHTML = '';
@@ -278,7 +381,7 @@
         let curC = startCol, curR = 0;
 
         for (let i = 0; i < tokens.length; i++) {
-            if (currentMode === 'fix' && curR === 0 && (curC === 3 || curC === 4)) curR = 6;
+            if (curR === 0 && curC >= startCol && curC < startCol + topBlankCols) curR = topBlankRows;
             let t = tokens[i];
             if (t === '\n') { curC++; curR = 0; continue; }
 
@@ -307,7 +410,7 @@
         
         for (let p = 0; p < totalPages; p++) {
             const paper = document.createElement('div');
-            paper.className = 'paper';
+            paper.className = `paper ${fontClass} ${ruled === 'off' ? 'rule-off' : ''}`.trim();
             for (let c = 0; c < COLS; c++) {
                 const idx = p * COLS + c;
                 const line = document.createElement('div');
@@ -374,8 +477,25 @@
 
     window.addEventListener('resize', autoScalePaper);
 
+    function collectSettings() {
+        return {
+            title: titleInput.value,
+            name: nameInput.value,
+            body: textInput.value,
+            mode: currentMode,
+            rows: rowsInput.value,
+            cols: colsInput.value,
+            startCol: startColInput.value,
+            namePadding: namePaddingInput.value,
+            topBlankCols: document.getElementById('topBlankColsInput').value,
+            topBlankRows: document.getElementById('topBlankRowsInput').value,
+            ruled: document.getElementById('ruledLinesInput').value,
+            font: document.getElementById('fontSelect').value
+        };
+    }
+
     function saveToFile() {
-        const data = { title: titleInput.value, name: nameInput.value, body: textInput.value, mode: currentMode, rows: rowsInput.value, cols: colsInput.value, startCol: startColInput.value, namePadding: namePaddingInput.value };
+        const data = collectSettings();
         const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'text/plain'});
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
         a.download = `文集_${nameInput.value.trim() || '原稿'}.txt`; a.click();
@@ -393,10 +513,82 @@
                 rowsInput.value = data.rows || 22; colsInput.value = data.cols || 28;
                 document.getElementById('startColInput').value = data.startCol || 3;
                 document.getElementById('namePaddingInput').value = data.namePadding ?? 1;
+                document.getElementById('topBlankColsInput').value = data.topBlankCols ?? 0;
+                document.getElementById('topBlankRowsInput').value = data.topBlankRows ?? 0;
+                document.getElementById('ruledLinesInput').value = data.ruled || 'on';
+                document.getElementById('fontSelect').value = data.font || 'gothic';
                 if(data.mode) switchMode(data.mode); else updateAll();
             } catch (err) { alert("読込失敗"); }
         };
         reader.readAsText(file);
+    }
+
+    // 現在の設定を復元専用のURL（#view=...）として書き出す。読んだ側は編集できない。
+    function createShareUrl() {
+        const data = collectSettings();
+        const json = JSON.stringify(data);
+        const encoded = btoa(unescape(encodeURIComponent(json)));
+        const url = `${location.origin}${location.pathname}#view=${encoded}`;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(() => {
+                alert('共有用URLをコピーしました。\n\n' + url);
+            }).catch(() => {
+                prompt('このURLをコピーして共有してください（編集はできません）', url);
+            });
+        } else {
+            prompt('このURLをコピーして共有してください（編集はできません）', url);
+        }
+    }
+
+    // A4印刷でも粗くならないよう、原稿用紙を高解像度のJPEG画像として書き出す
+    async function saveAsImage() {
+        const papers = document.querySelectorAll('.paper');
+        if (!papers.length) return;
+        if (typeof html2canvas === 'undefined') {
+            alert('画像保存の機能を読み込めませんでした。通信環境を確認して再読み込みしてください。');
+            return;
+        }
+
+        const btn = document.getElementById('btnSaveImage');
+        const originalLabel = btn ? btn.innerText : '';
+        if (btn) { btn.innerText = '画像を作成中…'; btn.disabled = true; }
+
+        const wrapper = document.getElementById('output-wrapper');
+        const container = document.getElementById('output-container');
+        // 等倍表示に戻す（ラッパーのクリッピングで用紙が見切れないよう高さも解放する）
+        container.style.transform = 'none';
+        wrapper.style.overflow = 'visible';
+        wrapper.style.height = 'auto';
+        papers.forEach(p => p.classList.add('exporting'));
+
+        const PRINT_SCALE = 300 / 96; // 画面の96dpi基準を印刷向け300dpi相当まで引き上げる
+
+        try {
+            for (let i = 0; i < papers.length; i++) {
+                const canvas = await html2canvas(papers[i], {
+                    scale: PRINT_SCALE,
+                    backgroundColor: '#ffffff',
+                    useCORS: true
+                });
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+                const a = document.createElement('a');
+                a.href = dataUrl;
+                const base = (nameInput.value || '原稿').trim();
+                a.download = papers.length > 1 ? `文集_${base}_${i + 1}.jpg` : `文集_${base}.jpg`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                if (i < papers.length - 1) await new Promise(res => setTimeout(res, 300));
+            }
+        } catch (err) {
+            console.error('画像の保存に失敗しました:', err);
+            alert('画像の保存に失敗しました。');
+        } finally {
+            papers.forEach(p => p.classList.remove('exporting'));
+            wrapper.style.overflow = '';
+            autoScalePaper();
+            if (btn) { btn.innerText = originalLabel; btn.disabled = false; }
+        }
     }
 </script>
 
