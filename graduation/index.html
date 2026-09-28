@@ -765,8 +765,8 @@
             if (ruled === 'on') {
                 ctx.strokeStyle = '#ff8e8e';
                 ctx.lineWidth = Math.max(1, 0.5 * fontScale);
-                // はみ出し分の確保スペースも罫線を引いて埋める（そうしないと下だけ余白が広がって見える）
-                for (let r = 0; r < ROWS + maxExtra; r++) {
+                // はみ出し分（禁則処理の確保スペース）には画面表示と同じく罫線を引かない
+                for (let r = 0; r < ROWS; r++) {
                     ctx.strokeRect(x, padTop + r * rowH, colW, rowH);
                 }
             }
