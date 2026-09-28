@@ -74,7 +74,7 @@
         .zenkaku-bracket { display: inline-block; transform: none !important; text-orientation: mixed; }
         .tcy { text-combine-upright: all; -webkit-text-combine: horizontal; }
         /* 句読点（。、）は縦書きのマス目内で右上寄りに書くのが原稿用紙の慣習 */
-        .kuten { display: inline-block; transform: translate(0.35em, -0.35em); }
+        .kuten { display: inline-block; transform: translate(0.45em, -0.75em) scale(0.65); }
 
         /* コンテナの調整 */
         #output-wrapper { width: 100%; display: flex; justify-content: center; overflow: hidden; }
@@ -571,9 +571,14 @@
             ctx.fillText(displayChar, 0, 0);
             ctx.restore();
         } else if (kind === 'kuten') {
-            // 句読点は原稿用紙の慣習でマスの右上寄りに書く
-            const offset = fontSizePx * 0.35;
-            ctx.fillText(displayChar, cx + offset, cy - offset);
+            // 句読点は原稿用紙の慣習でマスの右上寄りに、小さめに書く
+            const offsetX = fontSizePx * 0.45;
+            const offsetY = fontSizePx * 0.75;
+            ctx.save();
+            ctx.translate(cx + offsetX, cy - offsetY);
+            ctx.scale(0.65, 0.65);
+            ctx.fillText(displayChar, 0, 0);
+            ctx.restore();
         } else {
             ctx.fillText(displayChar, cx, cy);
         }
