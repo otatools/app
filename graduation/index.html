@@ -52,6 +52,7 @@
         body.locked-mode .mode-selector,
         body.locked-mode .config-panel,
         body.locked-mode #fontSelect,
+        body.locked-mode #paperSizeSelect,
         body.locked-mode .btn-share {
             display: none !important;
         }
@@ -59,7 +60,9 @@
         .footer-info { margin-top: 20px; margin-bottom: 40px; font-size: 12px; color: #888; text-align: center; }
 
         /* 原稿用紙設定 */
-        .paper { background: white; width: 297mm; height: 210mm; padding: 15mm 20mm; box-shadow: 0 0 15px rgba(0,0,0,0.2); display: flex; flex-direction: row-reverse; box-sizing: border-box; position: relative; font-family: 'Noto Sans JP', sans-serif; }
+        .paper { background: white; padding: 15mm 20mm; box-shadow: 0 0 15px rgba(0,0,0,0.2); display: flex; flex-direction: row-reverse; box-sizing: border-box; position: relative; font-family: 'Noto Sans JP', sans-serif; }
+        .paper.size-a4 { width: 297mm; height: 210mm; }
+        .paper.size-b5 { width: 257mm; height: 182mm; }
         .paper:not(:last-child) { margin-bottom: 20px; }
         .paper.font-mincho { font-family: 'Noto Serif JP', serif; }
         .paper.font-maru { font-family: 'Kosugi Maru', 'Noto Sans JP', sans-serif; }
@@ -103,6 +106,10 @@
                 <option value="gothic">ゴシック体</option>
                 <option value="mincho">明朝体</option>
                 <option value="maru">丸ゴシック</option>
+            </select>
+            <select id="paperSizeSelect" onchange="updateAll()" class="font-select-inline">
+                <option value="a4">A4</option>
+                <option value="b5">B5</option>
             </select>
         </div>
     </div>
@@ -210,19 +217,17 @@
     // 共有URLを短くするための処理：初期設定との「差分」だけを短いキー名で持たせ、
     // さらにgzip圧縮してbase64url化する。共有URLには「設定」だけを載せ、
     // 題名・名前・本文は入れない（児童が自分で入力するので、開いたときは初期テンプレートの文言を表示する）。
-    const SHARE_DEFAULTS = { rows: '22', cols: '28', startCol: '3', namePadding: '1', titleOffset: '0', topBlankCols: '0', topBlankRows: '0', ruled: 'on', font: 'gothic' };
-    const SHARE_SHORT_KEYS = { rows: 'r', cols: 'c', startCol: 's', namePadding: 'p', titleOffset: 'to', topBlankCols: 'tc', topBlankRows: 'tr', ruled: 'ru', font: 'f' };
+    const SHARE_DEFAULTS = { rows: '22', cols: '28', startCol: '3', namePadding: '1', titleOffset: '0', topBlankCols: '0', topBlankRows: '0', ruled: 'on', font: 'gothic', paperSize: 'a4' };
+    const SHARE_SHORT_KEYS = { rows: 'r', cols: 'c', startCol: 's', namePadding: 'p', titleOffset: 'to', topBlankCols: 'tc', topBlankRows: 'tr', ruled: 'ru', font: 'f', paperSize: 'sz' };
+    // フォント・用紙サイズはモードに関係ない共通設定。それ以外は「カスタム」のときだけ意味を持つ
+    const SHARE_SHARED_KEYS = ['font', 'paperSize'];
+    const SHARE_CUSTOM_ONLY_KEYS = ['rows', 'cols', 'startCol', 'namePadding', 'titleOffset', 'topBlankCols', 'topBlankRows', 'ruled'];
 
     function packShareData(data) {
         const out = { m: data.mode };
-        if (data.mode === 'custom') {
-            // カスタムのときだけ、初期設定（SHARE_DEFAULTS）と違う項目だけを詰める
-            for (const key in SHARE_DEFAULTS) {
-                if (String(data[key]) !== SHARE_DEFAULTS[key]) out[SHARE_SHORT_KEYS[key]] = data[key];
-            }
-        } else if (String(data.font) !== SHARE_DEFAULTS.font) {
-            // 野田小用は行数などが固定なのでフォント以外は無意味。フォントだけ差分があれば持たせる
-            out.f = data.font;
+        const keys = data.mode === 'custom' ? SHARE_CUSTOM_ONLY_KEYS.concat(SHARE_SHARED_KEYS) : SHARE_SHARED_KEYS;
+        for (const key of keys) {
+            if (String(data[key]) !== SHARE_DEFAULTS[key]) out[SHARE_SHORT_KEYS[key]] = data[key];
         }
         return out;
     }
@@ -281,6 +286,7 @@
         document.getElementById('topBlankRowsInput').value = data.topBlankRows ?? 0;
         document.getElementById('ruledLinesInput').value = data.ruled || 'on';
         document.getElementById('fontSelect').value = data.font || 'gothic';
+        document.getElementById('paperSizeSelect').value = data.paperSize || 'a4';
         currentMode = data.mode === 'custom' ? 'custom' : 'fix';
         document.getElementById('btn-fix').className = currentMode === 'fix' ? 'mode-btn active' : 'mode-btn';
         document.getElementById('btn-custom').className = currentMode === 'custom' ? 'mode-btn active' : 'mode-btn';
@@ -364,6 +370,7 @@
             document.getElementById('topBlankRowsInput').value = data.topBlankRows ?? 0;
             document.getElementById('ruledLinesInput').value = data.ruled || 'on';
             document.getElementById('fontSelect').value = data.font || 'gothic';
+            document.getElementById('paperSizeSelect').value = data.paperSize || 'a4';
             if (data.mode) switchMode(data.mode);
         } else {
             document.getElementById('titleInput').value = DEFAULTS.title;
@@ -407,7 +414,8 @@
             topBlankCols: document.getElementById('topBlankColsInput').value,
             topBlankRows: document.getElementById('topBlankRowsInput').value,
             ruled: document.getElementById('ruledLinesInput').value,
-            font: document.getElementById('fontSelect').value
+            font: document.getElementById('fontSelect').value,
+            paperSize: document.getElementById('paperSizeSelect').value
         };
         localStorage.setItem(activeStorageKey, JSON.stringify(data));
     }
@@ -454,6 +462,8 @@
         const font = document.getElementById('fontSelect').value;
         const fontClass = font === 'mincho' ? 'font-mincho' : (font === 'maru' ? 'font-maru' : '');
         const fontFamily = font === 'mincho' ? "'Noto Serif JP', serif" : (font === 'maru' ? "'Kosugi Maru', sans-serif" : "'Noto Sans JP', sans-serif");
+        const paperSize = document.getElementById('paperSizeSelect').value === 'b5' ? 'b5' : 'a4';
+        const paperSizeClass = paperSize === 'b5' ? 'size-b5' : 'size-a4';
 
         const out = document.getElementById('output-container');
         out.innerHTML = '';
@@ -513,7 +523,7 @@
         
         for (let p = 0; p < totalPages; p++) {
             const paper = document.createElement('div');
-            paper.className = `paper ${fontClass} ${ruled === 'off' ? 'rule-off' : ''}`.trim();
+            paper.className = `paper ${paperSizeClass} ${fontClass} ${ruled === 'off' ? 'rule-off' : ''}`.trim();
             for (let c = 0; c < COLS; c++) {
                 const idx = p * COLS + c;
                 const line = document.createElement('div');
@@ -545,7 +555,7 @@
         }
 
         // 画像保存で使う：画面と全く同じレイアウトデータをそのまま保持しておく
-        lastRenderData = { colData, ROWS, COLS, totalPages, ruled, fontFamily };
+        lastRenderData = { colData, ROWS, COLS, totalPages, ruled, fontFamily, paperSize };
     }
 
     // ウィンドウの縦幅・横幅に合わせて「パンパン」に自動拡大縮小する
@@ -595,7 +605,8 @@
             topBlankCols: document.getElementById('topBlankColsInput').value,
             topBlankRows: document.getElementById('topBlankRowsInput').value,
             ruled: document.getElementById('ruledLinesInput').value,
-            font: document.getElementById('fontSelect').value
+            font: document.getElementById('fontSelect').value,
+            paperSize: document.getElementById('paperSizeSelect').value
         };
     }
 
@@ -623,6 +634,7 @@
                 document.getElementById('topBlankRowsInput').value = data.topBlankRows ?? 0;
                 document.getElementById('ruledLinesInput').value = data.ruled || 'on';
                 document.getElementById('fontSelect').value = data.font || 'gothic';
+                document.getElementById('paperSizeSelect').value = data.paperSize || 'a4';
                 if(data.mode) switchMode(data.mode); else updateAll();
             } catch (err) { alert("読込失敗"); }
         };
@@ -695,11 +707,12 @@
     // 実際の描画データ（lastRenderData）から直接Canvasに描くので、
     // 画面のCSS表示（縦書き・罫線・フォント設定）とズレが起きない。
     function drawPageToCanvas(pageIndex, data) {
-        const { colData, ROWS, COLS, ruled, fontFamily } = data;
+        const { colData, ROWS, COLS, ruled, fontFamily, paperSize } = data;
+        const paperMm = paperSize === 'b5' ? { w: 257, h: 182 } : { w: 297, h: 210 };
         const DPI = 300;
         const MM_TO_PX = DPI / 25.4;
-        const canvasW = Math.round(297 * MM_TO_PX);
-        const canvasH = Math.round(210 * MM_TO_PX);
+        const canvasW = Math.round(paperMm.w * MM_TO_PX);
+        const canvasH = Math.round(paperMm.h * MM_TO_PX);
         const padLeft = 20 * MM_TO_PX, padRight = 20 * MM_TO_PX;
         const padTop = 15 * MM_TO_PX, padBottom = 15 * MM_TO_PX;
         const contentW = canvasW - padLeft - padRight;
