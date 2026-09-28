@@ -113,7 +113,7 @@
                 <option value="b5">B5</option>
             </select>
             <label class="header-margin-label" title="保存画像のまわりの最低限の余白（マスは正方形を保つため、用紙の縦横比との関係で実際の余白がこれより大きくなることがあります）">
-                余白<input type="number" id="marginInput" value="15" min="5" max="50" step="1" onchange="updateAll()" class="margin-input-inline">mm
+                余白<input type="number" id="marginInput" value="15" min="0" max="50" step="1" onchange="updateAll()" class="margin-input-inline">mm
             </label>
         </div>
     </div>
@@ -471,7 +471,8 @@
         const fontFamily = font === 'mincho' ? "'Noto Serif JP', serif" : (font === 'maru' ? "'Kosugi Maru', sans-serif" : "'Noto Sans JP', sans-serif");
         // 用紙サイズ・余白の選択は保存画像にのみ反映する（画面上のマス目のサイズは変えない）
         const paperSize = document.getElementById('paperSizeSelect').value === 'b5' ? 'b5' : 'a4';
-        const marginMm = Math.min(50, Math.max(5, parseInt(document.getElementById('marginInput').value) || 15));
+        const parsedMargin = parseInt(document.getElementById('marginInput').value);
+        const marginMm = Math.min(50, Math.max(0, isNaN(parsedMargin) ? 15 : parsedMargin));
 
         const out = document.getElementById('output-container');
         out.innerHTML = '';
