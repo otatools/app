@@ -134,6 +134,10 @@
                 <input type="number" id="namePaddingInput" value="1" min="0" oninput="updateAll()">
             </div>
             <div class="config-group">
+                <label>題名の上の空きマス</label>
+                <input type="number" id="titleOffsetInput" value="0" min="0" oninput="updateAll()">
+            </div>
+            <div class="config-group">
                 <label>上部を空ける列数（左から）</label>
                 <input type="number" id="topBlankColsInput" value="0" min="0" oninput="updateAll()">
             </div>
@@ -208,7 +212,7 @@
         return {
             t: data.title, n: data.name, b: data.body, m: data.mode,
             r: data.rows, c: data.cols, s: data.startCol, p: data.namePadding,
-            tc: data.topBlankCols, tr: data.topBlankRows, ru: data.ruled, f: data.font
+            to: data.titleOffset, tc: data.topBlankCols, tr: data.topBlankRows, ru: data.ruled, f: data.font
         };
     }
 
@@ -218,7 +222,7 @@
         return {
             title: obj.t, name: obj.n, body: obj.b, mode: obj.m,
             rows: obj.r, cols: obj.c, startCol: obj.s, namePadding: obj.p,
-            topBlankCols: obj.tc, topBlankRows: obj.tr, ruled: obj.ru, font: obj.f
+            titleOffset: obj.to, topBlankCols: obj.tc, topBlankRows: obj.tr, ruled: obj.ru, font: obj.f
         };
     }
 
@@ -257,6 +261,7 @@
         document.getElementById('colsInput').value = data.cols || 28;
         document.getElementById('startColInput').value = data.startCol || 3;
         document.getElementById('namePaddingInput').value = data.namePadding ?? 1;
+        document.getElementById('titleOffsetInput').value = data.titleOffset ?? 0;
         document.getElementById('topBlankColsInput').value = data.topBlankCols ?? 0;
         document.getElementById('topBlankRowsInput').value = data.topBlankRows ?? 0;
         document.getElementById('ruledLinesInput').value = data.ruled || 'on';
@@ -328,6 +333,7 @@
             document.getElementById('colsInput').value = data.cols || 28;
             document.getElementById('startColInput').value = data.startCol || 3;
             document.getElementById('namePaddingInput').value = data.namePadding ?? 1;
+            document.getElementById('titleOffsetInput').value = data.titleOffset ?? 0;
             document.getElementById('topBlankColsInput').value = data.topBlankCols ?? 0;
             document.getElementById('topBlankRowsInput').value = data.topBlankRows ?? 0;
             document.getElementById('ruledLinesInput').value = data.ruled || 'on';
@@ -371,6 +377,7 @@
             cols: document.getElementById('colsInput').value,
             startCol: document.getElementById('startColInput').value,
             namePadding: document.getElementById('namePaddingInput').value,
+            titleOffset: document.getElementById('titleOffsetInput').value,
             topBlankCols: document.getElementById('topBlankColsInput').value,
             topBlankRows: document.getElementById('topBlankRowsInput').value,
             ruled: document.getElementById('ruledLinesInput').value,
@@ -431,7 +438,7 @@
             return colData[idx];
         };
 
-        let tOffset = currentMode === 'fix' ? 7 : 0;
+        let tOffset = currentMode === 'fix' ? 7 : Math.min(Math.max(0, parseInt(document.getElementById('titleOffsetInput').value) || 0), ROWS - 1);
         const maxTitleLen = Math.max(0, ROWS - tOffset);
         for(let i=0; i<title.length && (i+tOffset)<ROWS; i++) ensureCol(0).cells[i+tOffset] = title[i];
         titleEl.style.outline = title.length > maxTitleLen ? '2px solid #f44336' : '';
@@ -558,6 +565,7 @@
             cols: colsInput.value,
             startCol: startColInput.value,
             namePadding: namePaddingInput.value,
+            titleOffset: document.getElementById('titleOffsetInput').value,
             topBlankCols: document.getElementById('topBlankColsInput').value,
             topBlankRows: document.getElementById('topBlankRowsInput').value,
             ruled: document.getElementById('ruledLinesInput').value,
@@ -584,6 +592,7 @@
                 rowsInput.value = data.rows || 22; colsInput.value = data.cols || 28;
                 document.getElementById('startColInput').value = data.startCol || 3;
                 document.getElementById('namePaddingInput').value = data.namePadding ?? 1;
+                document.getElementById('titleOffsetInput').value = data.titleOffset ?? 0;
                 document.getElementById('topBlankColsInput').value = data.topBlankCols ?? 0;
                 document.getElementById('topBlankRowsInput').value = data.topBlankRows ?? 0;
                 document.getElementById('ruledLinesInput').value = data.ruled || 'on';
