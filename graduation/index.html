@@ -739,17 +739,19 @@
         // はみ出しマスの確保スペースは下だけでなく上にも同じマス数ぶん確保し、
         // 罫線のある本体行（ROWS行）を真ん中に置くことで、はみ出しがあっても
         // 見た目の余白（罫線の外側の空白）が上下で揃うようにする。
+        // はみ出しがない場合でも、上下には最低1マス分は確保しておく。
+        const reserveRows = Math.max(maxExtra, 1);
         const availableWmm = paperMm.w - margin * 2;
         const availableHmm = paperMm.h - margin * 2;
-        const cellMm = Math.min(availableWmm / COLS, availableHmm / (ROWS + maxExtra * 2));
+        const cellMm = Math.min(availableWmm / COLS, availableHmm / (ROWS + reserveRows * 2));
         const gridWmm = cellMm * COLS;
-        const gridHmm = cellMm * (ROWS + maxExtra * 2);
+        const gridHmm = cellMm * (ROWS + reserveRows * 2);
         const padLeft = (paperMm.w - gridWmm) / 2 * MM_TO_PX;
         const padRight = padLeft;
         const colW = cellMm * MM_TO_PX;
         const rowH = colW;
         const outerPadTop = (paperMm.h - gridHmm) / 2 * MM_TO_PX;
-        const padTop = outerPadTop + maxExtra * rowH; // 本体行の開始位置は上の確保スペース分だけ下げる
+        const padTop = outerPadTop + reserveRows * rowH; // 本体行の開始位置は上の確保スペース分だけ下げる
         const fontScale = DPI / 96; // 画面のCSS px(96dpi相当)基準を印刷解像度に合わせる
         const fontSizePx = Math.min(22, 550 / ROWS) * fontScale;
 
