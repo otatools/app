@@ -732,15 +732,19 @@
             if (col && col.extra && col.extra.length > maxExtra) maxExtra = col.extra.length;
         }
 
-        // 上下の余白は指定値のまま固定し、はみ出しマスの分だけマスの高さ自体を
-        // 少し縮めて余白の外（画像の外）に絶対にはみ出さないようにする。
-        const padLeft = margin * MM_TO_PX, padRight = margin * MM_TO_PX;
-        const padTop = margin * MM_TO_PX;
+        // マスは正方形にする。指定した余白は「最低限確保する余白」として扱い、
+        // 縦横どちらか狭い方に合わせて1マスのサイズを決め、余った分は反対側の
+        // 余白に均等に振り分けて中央に配置する（上下同士・左右同士は必ず同じ広さになる）。
+        const availableWmm = paperMm.w - margin * 2;
         const availableHmm = paperMm.h - margin * 2;
-        const rowHmm = availableHmm / (ROWS + maxExtra);
-        const contentW = canvasW - padLeft - padRight;
-        const colW = contentW / COLS;
-        const rowH = rowHmm * MM_TO_PX;
+        const cellMm = Math.min(availableWmm / COLS, availableHmm / (ROWS + maxExtra));
+        const gridWmm = cellMm * COLS;
+        const gridHmm = cellMm * (ROWS + maxExtra);
+        const padLeft = (paperMm.w - gridWmm) / 2 * MM_TO_PX;
+        const padRight = padLeft;
+        const padTop = (paperMm.h - gridHmm) / 2 * MM_TO_PX;
+        const colW = cellMm * MM_TO_PX;
+        const rowH = colW;
         const fontScale = DPI / 96; // 画面のCSS px(96dpi相当)基準を印刷解像度に合わせる
         const fontSizePx = Math.min(22, 550 / ROWS) * fontScale;
 
