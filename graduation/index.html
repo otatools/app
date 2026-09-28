@@ -735,16 +735,20 @@
         // マスは正方形にする。指定した余白は「最低限確保する余白」として扱い、
         // 縦横どちらか狭い方に合わせて1マスのサイズを決め、余った分は反対側の
         // 余白に均等に振り分けて中央に配置する（上下同士・左右同士は必ず同じ広さになる）。
+        // はみ出しマスの確保スペースは下だけでなく上にも同じマス数ぶん確保し、
+        // 罫線のある本体行（ROWS行）を真ん中に置くことで、はみ出しがあっても
+        // 見た目の余白（罫線の外側の空白）が上下で揃うようにする。
         const availableWmm = paperMm.w - margin * 2;
         const availableHmm = paperMm.h - margin * 2;
-        const cellMm = Math.min(availableWmm / COLS, availableHmm / (ROWS + maxExtra));
+        const cellMm = Math.min(availableWmm / COLS, availableHmm / (ROWS + maxExtra * 2));
         const gridWmm = cellMm * COLS;
-        const gridHmm = cellMm * (ROWS + maxExtra);
+        const gridHmm = cellMm * (ROWS + maxExtra * 2);
         const padLeft = (paperMm.w - gridWmm) / 2 * MM_TO_PX;
         const padRight = padLeft;
-        const padTop = (paperMm.h - gridHmm) / 2 * MM_TO_PX;
         const colW = cellMm * MM_TO_PX;
         const rowH = colW;
+        const outerPadTop = (paperMm.h - gridHmm) / 2 * MM_TO_PX;
+        const padTop = outerPadTop + maxExtra * rowH; // 本体行の開始位置は上の確保スペース分だけ下げる
         const fontScale = DPI / 96; // 画面のCSS px(96dpi相当)基準を印刷解像度に合わせる
         const fontSizePx = Math.min(22, 550 / ROWS) * fontScale;
 
