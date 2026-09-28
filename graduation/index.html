@@ -23,11 +23,12 @@
         .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         h3 { margin: 0; color: #1976D2; border-left: 5px solid #1976D2; padding-left: 10px; }
 
-        .font-select-inline { width: auto; min-width: 120px; padding: 6px 10px; font-size: 0.85em; }
+        .header-ctrl { height: 32px; box-sizing: border-box; font-size: 0.85rem; padding: 0 10px; border: 1px solid #ddd; border-radius: 6px; font-family: inherit; }
+        .font-select-inline { width: auto; min-width: 120px; }
         .header-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-        button.header-share-btn { flex: none; width: auto; min-width: 0; padding: 6px 10px; font-size: 0.85em; }
-        .header-margin-label { font-size: 0.85em; color: #444; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
-        .margin-input-inline { width: 55px; height: 31px; padding: 6px 8px; font-size: 0.85em; }
+        button.header-share-btn { flex: none; width: auto; min-width: 0; padding: 0 10px; border: none; }
+        .header-margin-label { height: 32px; box-sizing: border-box; margin-bottom: 0; font-weight: normal; font-size: 0.85rem; color: #444; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+        .margin-input-inline { width: 50px; padding: 0 8px; }
 
         .mode-selector { display: flex; background: #eee; padding: 5px; border-radius: 8px; margin-bottom: 20px; }
         .mode-btn { flex: 1; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; background: transparent; transition: 0.3s; }
@@ -102,19 +103,19 @@
     <div class="header-row">
         <h3>卒業文集清書ツール</h3>
         <div class="header-controls">
-            <select id="fontSelect" onchange="updateAll()" class="font-select-inline">
+            <select id="fontSelect" onchange="updateAll()" class="header-ctrl font-select-inline">
                 <option value="gothic">ゴシック体</option>
                 <option value="mincho">明朝体</option>
                 <option value="maru">丸ゴシック</option>
             </select>
-            <select id="paperSizeSelect" onchange="updateAll()" class="font-select-inline">
+            <select id="paperSizeSelect" onchange="updateAll()" class="header-ctrl font-select-inline">
                 <option value="a4">A4</option>
                 <option value="b5" selected>B5</option>
             </select>
             <label class="header-margin-label" title="保存画像のまわりの最低限の余白の大きさ（マスは正方形を保つため、実際の余白がこれより大きくなることがあります）">
-                余白<input type="number" id="marginInput" value="5" min="0" max="50" step="1" onchange="updateAll()" class="margin-input-inline">
+                余白<input type="number" id="marginInput" value="5" min="0" max="50" step="1" onchange="updateAll()" class="header-ctrl margin-input-inline">
             </label>
-            <button onclick="createShareUrl()" class="btn btn-share header-share-btn">児童用URL作成</button>
+            <button onclick="createShareUrl()" class="btn btn-share header-ctrl header-share-btn">児童用URL作成</button>
         </div>
     </div>
 
