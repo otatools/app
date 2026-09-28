@@ -138,7 +138,7 @@
                 <input type="number" id="titleOffsetInput" value="0" min="0" oninput="updateAll()">
             </div>
             <div class="config-group">
-                <label>上部を空ける列数（左から）</label>
+                <label>上部を空ける列数（題名を1列目とし、そこから右から数えて。題名自体は対象外）</label>
                 <input type="number" id="topBlankColsInput" value="0" min="0" oninput="updateAll()">
             </div>
             <div class="config-group">
@@ -191,7 +191,7 @@
     let isAutoSaveOn = false;
     const KEY = 'bungyu_draft_data_v853';
     const OLD_KEYS = ['bungyu_draft_data_v851'];
-    // 共有URL（#view=...）で開いたときはリンクごとに専用のキーへ保存し、
+    // 共有URL（#v=... など）で開いたときはリンクごとに専用のキーへ保存し、
     // 閲覧者自身の（このリンクと無関係な）下書きを上書きしないようにする
     let activeStorageKey = KEY;
     // 画像保存用：generatePaper()が最後に組み立てたレイアウトデータ（画面表示と完全に同じもの）
@@ -207,24 +207,36 @@
         if (el.value === DEFAULTS[key]) { el.value = ''; updateAll(); }
     }
 
-    // 共有URLを短くするための処理：短いキー名に詰め替え、gzip圧縮してbase64url化する
-    // 共有URLには「設定」だけを載せる。題名・名前・本文は入れない
-    // （児童が自分で入力するので、開いたときは初期テンプレートの文言を表示する）。
+    // 共有URLを短くするための処理：初期設定との「差分」だけを短いキー名で持たせ、
+    // さらにgzip圧縮してbase64url化する。共有URLには「設定」だけを載せ、
+    // 題名・名前・本文は入れない（児童が自分で入力するので、開いたときは初期テンプレートの文言を表示する）。
+    const SHARE_DEFAULTS = { rows: '22', cols: '28', startCol: '3', namePadding: '1', titleOffset: '0', topBlankCols: '0', topBlankRows: '0', ruled: 'on', font: 'gothic' };
+    const SHARE_SHORT_KEYS = { rows: 'r', cols: 'c', startCol: 's', namePadding: 'p', titleOffset: 'to', topBlankCols: 'tc', topBlankRows: 'tr', ruled: 'ru', font: 'f' };
+
     function packShareData(data) {
-        return {
-            m: data.mode,
-            r: data.rows, c: data.cols, s: data.startCol, p: data.namePadding,
-            to: data.titleOffset, tc: data.topBlankCols, tr: data.topBlankRows, ru: data.ruled, f: data.font
-        };
+        const out = { m: data.mode };
+        if (data.mode === 'custom') {
+            // カスタムのときだけ、初期設定（SHARE_DEFAULTS）と違う項目だけを詰める
+            for (const key in SHARE_DEFAULTS) {
+                if (String(data[key]) !== SHARE_DEFAULTS[key]) out[SHARE_SHORT_KEYS[key]] = data[key];
+            }
+        } else if (String(data.font) !== SHARE_DEFAULTS.font) {
+            // 野田小用は行数などが固定なのでフォント以外は無意味。フォントだけ差分があれば持たせる
+            out.f = data.font;
+        }
+        return out;
     }
 
     function unpackShareData(obj) {
         // 旧形式（フルネームキー、'mode'を持つ）ならそのまま返す
         if ('mode' in obj) return obj;
-        return {
-            mode: obj.m, rows: obj.r, cols: obj.c, startCol: obj.s, namePadding: obj.p,
-            titleOffset: obj.to, topBlankCols: obj.tc, topBlankRows: obj.tr, ruled: obj.ru, font: obj.f
-        };
+        const mode = obj.m === 'custom' ? 'custom' : 'fix';
+        const result = { mode };
+        for (const key in SHARE_DEFAULTS) {
+            const shortKey = SHARE_SHORT_KEYS[key];
+            result[key] = (shortKey in obj) ? obj[shortKey] : SHARE_DEFAULTS[key];
+        }
+        return result;
     }
 
     function bytesToBase64url(bytes) {
@@ -253,7 +265,7 @@
         return await new Response(stream).text();
     }
 
-    // 共有URL（#view=...）で開かれた場合は、設定を復元した上で編集UIを隠す。
+    // 共有URL（#v=... など）で開かれた場合は、設定を復元した上で編集UIを隠す。
     // 題名・名前・本文はURLに含まれないので、初期テンプレートの文言を表示する
     // （このリンクで児童が前に入力・保存した下書きがあれば、そちらを優先する＝呼び出し元でdataに含めて渡す）
     function applySharedData(data) {
@@ -275,10 +287,20 @@
         document.getElementById('titleLabel').innerText = currentMode === 'fix' ? '題名（8マス目から）' : '題名';
     }
 
+    // 共有パラメータは #v=/#view=（ハッシュ）でも ?v=/?view=（クエリ）でも読めるようにする
+    function getSharedEncoded() {
+        if (location.hash.startsWith('#v=')) return location.hash.slice(3);
+        if (location.hash.startsWith('#view=')) return location.hash.slice(6);
+        const params = new URLSearchParams(location.search);
+        if (params.has('v')) return params.get('v');
+        if (params.has('view')) return params.get('view');
+        return null;
+    }
+
     async function tryLoadSharedView() {
-        if (!location.hash.startsWith('#view=')) return false;
+        const encoded = getSharedEncoded();
+        if (encoded === null) return false;
         try {
-            const encoded = location.hash.slice('#view='.length);
             activeStorageKey = 'bungyu_shared_v2_' + encoded;
             let json;
             const marker = encoded[0];
@@ -606,21 +628,20 @@
         reader.readAsText(file);
     }
 
-    // 現在の設定を復元専用のURL（#view=...）として書き出す。読んだ側は編集できない。
-    // 短いキー名＋gzip圧縮でURLをできるだけ短くする（対応ブラウザのみ。非対応時は無圧縮にフォールバック）。
+    // 現在の設定を復元専用のURL（#v=...）として書き出す。読んだ側は編集できない。
+    // 初期設定との差分だけを短いキー名で持たせ、gzip圧縮した場合と無圧縮の場合で
+    // 短い方を採用する（短い設定差分だとgzipのヘッダ分だけ無圧縮より長くなることがあるため）。
     async function createShareUrl() {
         const json = JSON.stringify(packShareData(collectSettings()));
-        let encoded;
+        const plain = 'j' + bytesToBase64url(new TextEncoder().encode(json));
+        let encoded = plain;
         try {
             if (typeof CompressionStream !== 'undefined') {
-                encoded = 'z' + await compressToBase64url(json);
-            } else {
-                encoded = 'j' + bytesToBase64url(new TextEncoder().encode(json));
+                const compressed = 'z' + await compressToBase64url(json);
+                if (compressed.length < encoded.length) encoded = compressed;
             }
-        } catch (e) {
-            encoded = 'j' + bytesToBase64url(new TextEncoder().encode(json));
-        }
-        const url = `${location.origin}${location.pathname}#view=${encoded}`;
+        } catch (e) { /* 圧縮できなければ無圧縮のまま使う */ }
+        const url = `${location.origin}${location.pathname}#v=${encoded}`;
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(url).then(() => {
                 alert('共有用URLをコピーしました。\n\n' + url);
