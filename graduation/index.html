@@ -209,14 +209,18 @@
     // 画像保存用：generatePaper()が最後に組み立てたレイアウトデータ（画面表示と完全に同じもの）
     let lastRenderData = null;
     const AUTO_SAVE_KEY = 'bungyu_auto_save_enabled';
-    const DEFAULTS = { 
-        title: "題名", 
-        name: "野田　太郎", 
-        body: "　ここに本文を入力してください。全角で数字を打てば１マスずつ（２０）、半角で数字を打てば１マス（20）に入力できます。" 
+    const DEFAULTS = {
+        title: "題名",
+        name: "野田　太郎",
+        body: "　ここに本文を入力してください。全角で数字を打てば１マスずつ（２０）、半角で数字を打てば１マス（20）に入力できます。"
     };
+    // カスタム（自由設定）モードでは「野田小」に固有の名前ではなく、汎用の伏せ字を初期表示する
+    const CUSTOM_NAME_DEFAULT = "〇〇　〇〇";
+    function nameDefaultFor(mode) { return mode === 'custom' ? CUSTOM_NAME_DEFAULT : DEFAULTS.name; }
 
     function clearIfDefault(el, key) {
-        if (el.value === DEFAULTS[key]) { el.value = ''; updateAll(); }
+        const defaultVal = key === 'name' ? nameDefaultFor(currentMode) : DEFAULTS[key];
+        if (el.value === defaultVal) { el.value = ''; updateAll(); }
     }
 
     // 共有URLを短くするための処理：初期設定との「差分」だけを短いキー名で持たせ、
@@ -279,8 +283,9 @@
     // 題名・名前・本文はURLに含まれないので、初期テンプレートの文言を表示する
     // （このリンクで児童が前に入力・保存した下書きがあれば、そちらを優先する＝呼び出し元でdataに含めて渡す）
     function applySharedData(data) {
+        currentMode = data.mode === 'custom' ? 'custom' : 'fix';
         document.getElementById('titleInput').value = data.title ?? DEFAULTS.title;
-        document.getElementById('nameInput').value = data.name ?? DEFAULTS.name;
+        document.getElementById('nameInput').value = data.name ?? nameDefaultFor(currentMode);
         document.getElementById('textInput').value = data.body ?? DEFAULTS.body;
         document.getElementById('rowsInput').value = data.rows || 22;
         document.getElementById('colsInput').value = data.cols || 28;
@@ -293,7 +298,6 @@
         document.getElementById('fontSelect').value = data.font || 'gothic';
         document.getElementById('paperSizeSelect').value = data.paperSize || 'b5';
         document.getElementById('marginInput').value = data.margin ?? 5;
-        currentMode = data.mode === 'custom' ? 'custom' : 'fix';
         document.getElementById('btn-fix').className = currentMode === 'fix' ? 'mode-btn active' : 'mode-btn';
         document.getElementById('btn-custom').className = currentMode === 'custom' ? 'mode-btn active' : 'mode-btn';
         document.getElementById('titleLabel').innerText = currentMode === 'fix' ? '題名（8マス目から）' : '題名';
@@ -431,6 +435,9 @@
     function resetData() { if (confirm("リセットしますか？")) { localStorage.removeItem(activeStorageKey); location.reload(); } }
 
     function switchMode(mode) {
+        // 名前欄がまだ切替前モードの初期表示のままなら、新しいモードの初期表示に置き換える
+        const nameEl = document.getElementById('nameInput');
+        if (nameEl.value === nameDefaultFor(currentMode)) nameEl.value = nameDefaultFor(mode);
         currentMode = mode;
         document.getElementById('btn-fix').className = mode === 'fix' ? 'mode-btn active' : 'mode-btn';
         document.getElementById('btn-custom').className = mode === 'custom' ? 'mode-btn active' : 'mode-btn';
