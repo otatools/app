@@ -59,10 +59,8 @@
 
         .footer-info { margin-top: 20px; margin-bottom: 40px; font-size: 12px; color: #888; text-align: center; }
 
-        /* 原稿用紙設定 */
-        .paper { background: white; padding: 15mm 20mm; box-shadow: 0 0 15px rgba(0,0,0,0.2); display: flex; flex-direction: row-reverse; box-sizing: border-box; position: relative; font-family: 'Noto Sans JP', sans-serif; }
-        .paper.size-a4 { width: 297mm; height: 210mm; }
-        .paper.size-b5 { width: 257mm; height: 182mm; }
+        /* 原稿用紙設定：画面上のマス目は常にA4サイズのまま（用紙サイズ選択は保存画像にのみ反映） */
+        .paper { background: white; width: 297mm; height: 210mm; padding: 15mm 20mm; box-shadow: 0 0 15px rgba(0,0,0,0.2); display: flex; flex-direction: row-reverse; box-sizing: border-box; position: relative; font-family: 'Noto Sans JP', sans-serif; }
         .paper:not(:last-child) { margin-bottom: 20px; }
         .paper.font-mincho { font-family: 'Noto Serif JP', serif; }
         .paper.font-maru { font-family: 'Kosugi Maru', 'Noto Sans JP', sans-serif; }
@@ -462,8 +460,8 @@
         const font = document.getElementById('fontSelect').value;
         const fontClass = font === 'mincho' ? 'font-mincho' : (font === 'maru' ? 'font-maru' : '');
         const fontFamily = font === 'mincho' ? "'Noto Serif JP', serif" : (font === 'maru' ? "'Kosugi Maru', sans-serif" : "'Noto Sans JP', sans-serif");
+        // 用紙サイズの選択は保存画像の縦横比にのみ反映する（画面上のマス目のサイズは変えない）
         const paperSize = document.getElementById('paperSizeSelect').value === 'b5' ? 'b5' : 'a4';
-        const paperSizeClass = paperSize === 'b5' ? 'size-b5' : 'size-a4';
 
         const out = document.getElementById('output-container');
         out.innerHTML = '';
@@ -523,7 +521,7 @@
         
         for (let p = 0; p < totalPages; p++) {
             const paper = document.createElement('div');
-            paper.className = `paper ${paperSizeClass} ${fontClass} ${ruled === 'off' ? 'rule-off' : ''}`.trim();
+            paper.className = `paper ${fontClass} ${ruled === 'off' ? 'rule-off' : ''}`.trim();
             for (let c = 0; c < COLS; c++) {
                 const idx = p * COLS + c;
                 const line = document.createElement('div');
