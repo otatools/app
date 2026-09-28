@@ -208,20 +208,21 @@
     }
 
     // 共有URLを短くするための処理：短いキー名に詰め替え、gzip圧縮してbase64url化する
+    // 共有URLには「設定」だけを載せる。題名・名前・本文は入れない
+    // （児童が自分で入力するので、開いたときは初期テンプレートの文言を表示する）。
     function packShareData(data) {
         return {
-            t: data.title, n: data.name, b: data.body, m: data.mode,
+            m: data.mode,
             r: data.rows, c: data.cols, s: data.startCol, p: data.namePadding,
             to: data.titleOffset, tc: data.topBlankCols, tr: data.topBlankRows, ru: data.ruled, f: data.font
         };
     }
 
     function unpackShareData(obj) {
-        // 短縮キー('t'など)が無ければ、旧形式（フルネームのキー）とみなしてそのまま使う
-        if (!('t' in obj) && !('b' in obj)) return obj;
+        // 旧形式（フルネームキー、'mode'を持つ）ならそのまま返す
+        if ('mode' in obj) return obj;
         return {
-            title: obj.t, name: obj.n, body: obj.b, mode: obj.m,
-            rows: obj.r, cols: obj.c, startCol: obj.s, namePadding: obj.p,
+            mode: obj.m, rows: obj.r, cols: obj.c, startCol: obj.s, namePadding: obj.p,
             titleOffset: obj.to, topBlankCols: obj.tc, topBlankRows: obj.tr, ruled: obj.ru, font: obj.f
         };
     }
@@ -252,11 +253,13 @@
         return await new Response(stream).text();
     }
 
-    // 共有URL（#view=...）で開かれた場合は、設定を復元した上で編集UIを隠す
+    // 共有URL（#view=...）で開かれた場合は、設定を復元した上で編集UIを隠す。
+    // 題名・名前・本文はURLに含まれないので、初期テンプレートの文言を表示する
+    // （このリンクで児童が前に入力・保存した下書きがあれば、そちらを優先する＝呼び出し元でdataに含めて渡す）
     function applySharedData(data) {
-        document.getElementById('titleInput').value = data.title || '';
-        document.getElementById('nameInput').value = data.name || '';
-        document.getElementById('textInput').value = data.body || '';
+        document.getElementById('titleInput').value = data.title ?? DEFAULTS.title;
+        document.getElementById('nameInput').value = data.name ?? DEFAULTS.name;
+        document.getElementById('textInput').value = data.body ?? DEFAULTS.body;
         document.getElementById('rowsInput').value = data.rows || 22;
         document.getElementById('colsInput').value = data.cols || 28;
         document.getElementById('startColInput').value = data.startCol || 3;
