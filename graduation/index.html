@@ -73,6 +73,8 @@
         .force-rotate { display: inline-block !important; transform: rotate(90deg); line-height: 1; }
         .zenkaku-bracket { display: inline-block; transform: none !important; text-orientation: mixed; }
         .tcy { text-combine-upright: all; -webkit-text-combine: horizontal; }
+        /* 句読点（。、）は縦書きのマス目内で右上寄りに書くのが原稿用紙の慣習 */
+        .kuten { display: inline-block; transform: translate(0.35em, -0.35em); }
 
         /* コンテナの調整 */
         #output-wrapper { width: 100%; display: flex; justify-content: center; overflow: hidden; }
@@ -334,6 +336,15 @@
         return map[char] || char;
     }
 
+    // マスの中での文字の向き・位置を決める（数字の詰め文字/括弧の回転/句読点の右上寄せ）
+    function charClass(raw) {
+        if (/^[0-9]+$/.test(raw)) return 'tcy';
+        if (/[（）]/.test(raw)) return 'zenkaku-bracket';
+        if (/[()]/.test(raw)) return 'force-rotate';
+        if (/[。、]/.test(raw)) return 'kuten';
+        return '';
+    }
+
     function generatePaper() {
         const titleEl = document.getElementById('titleInput');
         const nameEl = document.getElementById('nameInput');
@@ -423,8 +434,7 @@
                     cell.style.fontSize = `${Math.min(22, (550 / ROWS))}px`;
                     let d = colData[idx]?.cells[r] || '';
                     if (d) {
-                        let cls = /^[0-9]+$/.test(d) ? 'tcy' : (/[（）]/.test(d) ? 'zenkaku-bracket' : (/[()]/.test(d) ? 'force-rotate' : ''));
-                        cell.innerHTML = `<span class="${cls}">${fixSymbol(d)}</span>`;
+                        cell.innerHTML = `<span class="${charClass(d)}">${fixSymbol(d)}</span>`;
                     }
                     line.appendChild(cell);
                 }
@@ -434,8 +444,7 @@
                     exc.style.top = `calc(100% + (${ei} * (100% / ${ROWS})))`;
                     exc.style.height = `calc(100% / ${ROWS})`;
                     exc.style.fontSize = `${Math.min(22, (550 / ROWS))}px`;
-                    let cls = /^[0-9]+$/.test(ex) ? 'tcy' : (/[（）]/.test(ex) ? 'zenkaku-bracket' : (/[()]/.test(ex) ? 'force-rotate' : ''));
-                    exc.innerHTML = `<span class="${cls}">${fixSymbol(ex)}</span>`;
+                    exc.innerHTML = `<span class="${charClass(ex)}">${fixSymbol(ex)}</span>`;
                     line.appendChild(exc);
                 });
                 paper.appendChild(line);
@@ -543,35 +552,29 @@
         }
     }
 
-    // 罫線・文字の種類（半角数字の組み合わせ/全角括弧の回転）を判定するヘルパー
-    function charDrawKind(raw) {
-        if (/^[0-9]+$/.test(raw)) return 'tcy';
-        const displayChar = fixSymbol(raw);
-        if (displayChar === '（' || displayChar === '）') return 'rotate';
-        return 'normal';
-    }
-
     function drawCharInCell(ctx, raw, cx, cy, fontSizePx, fontFamily) {
         const displayChar = fixSymbol(raw);
-        const kind = charDrawKind(raw);
+        const kind = charClass(raw); // CSS側と同じ判定ロジックを共用
         ctx.fillStyle = '#222';
+        ctx.font = `${fontSizePx}px ${fontFamily}`;
         if (kind === 'tcy') {
             // text-combine-upright の再現：2文字を1マス分の幅に収める
-            ctx.font = `${fontSizePx}px ${fontFamily}`;
             ctx.save();
             ctx.translate(cx, cy);
             ctx.scale(0.55, 1);
             ctx.fillText(displayChar, 0, 0);
             ctx.restore();
-        } else if (kind === 'rotate') {
-            ctx.font = `${fontSizePx}px ${fontFamily}`;
+        } else if (kind === 'zenkaku-bracket' || kind === 'force-rotate') {
             ctx.save();
             ctx.translate(cx, cy);
             ctx.rotate(Math.PI / 2);
             ctx.fillText(displayChar, 0, 0);
             ctx.restore();
+        } else if (kind === 'kuten') {
+            // 句読点は原稿用紙の慣習でマスの右上寄りに書く
+            const offset = fontSizePx * 0.35;
+            ctx.fillText(displayChar, cx + offset, cy - offset);
         } else {
-            ctx.font = `${fontSizePx}px ${fontFamily}`;
             ctx.fillText(displayChar, cx, cy);
         }
     }
