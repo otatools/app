@@ -74,7 +74,8 @@
         .zenkaku-bracket { display: inline-block; transform: none !important; text-orientation: mixed; }
         .tcy { text-combine-upright: all; -webkit-text-combine: horizontal; }
         /* 句読点（。、）は縦書きのマス目内で右上寄りに書くのが原稿用紙の慣習 */
-        .kuten { display: inline-block; transform: translate(0.55em, -0.55em); }
+        /* 画面上の表示は元の中央寄せに戻す（右上寄せは保存画像の側だけで行う） */
+        .kuten { display: inline-block; }
 
         /* コンテナの調整 */
         #output-wrapper { width: 100%; display: flex; justify-content: center; overflow: hidden; }
