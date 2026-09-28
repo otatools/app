@@ -102,7 +102,6 @@
     <div class="header-row">
         <h3>卒業文集清書ツール</h3>
         <div class="header-controls">
-            <button onclick="createShareUrl()" class="btn btn-share header-share-btn">児童用URL作成</button>
             <select id="fontSelect" onchange="updateAll()" class="font-select-inline">
                 <option value="gothic">ゴシック体</option>
                 <option value="mincho">明朝体</option>
@@ -115,6 +114,7 @@
             <label class="header-margin-label" title="保存画像のまわりの最低限の余白の大きさ（マスは正方形を保つため、実際の余白がこれより大きくなることがあります）">
                 余白<input type="number" id="marginInput" value="5" min="0" max="50" step="1" onchange="updateAll()" class="margin-input-inline">
             </label>
+            <button onclick="createShareUrl()" class="btn btn-share header-share-btn">児童用URL作成</button>
         </div>
     </div>
 
