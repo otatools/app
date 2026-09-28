@@ -72,7 +72,7 @@
 
         .force-rotate { display: inline-block !important; transform: rotate(90deg); line-height: 1; }
         .zenkaku-bracket { display: inline-block; transform: none !important; text-orientation: mixed; }
-        .tcy { text-combine-upright: all; -webkit-text-combine: horizontal; }
+        .tcy { text-combine-upright: all; -webkit-text-combine: horizontal; font-weight: bold; }
         /* 句読点（。、）は縦書きのマス目内で右上寄りに書くのが原稿用紙の慣習 */
         /* 画面上の表示は元の中央寄せに戻す（右上寄せは保存画像の側だけで行う） */
         .kuten { display: inline-block; }
@@ -559,7 +559,9 @@
         ctx.fillStyle = '#222';
         ctx.font = `${fontSizePx}px ${fontFamily}`;
         if (kind === 'tcy') {
-            // text-combine-upright の再現：2文字を1マス分の幅に収める
+            // text-combine-upright の再現：2文字を1マス分の幅に収める。
+            // 横方向だけ縮めると線が細く見えるので太字にして補う。
+            ctx.font = `bold ${fontSizePx}px ${fontFamily}`;
             ctx.save();
             ctx.translate(cx, cy);
             ctx.scale(0.55, 1);
