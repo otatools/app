@@ -26,6 +26,8 @@
         .font-select-inline { width: auto; min-width: 120px; padding: 6px 10px; font-size: 0.85em; }
         .header-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
         button.header-share-btn { flex: none; width: auto; min-width: 0; padding: 6px 10px; font-size: 0.85em; }
+        .header-margin-label { font-size: 0.85em; color: #444; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+        .margin-input-inline { width: 55px; padding: 6px 8px; font-size: 1em; }
 
         .mode-selector { display: flex; background: #eee; padding: 5px; border-radius: 8px; margin-bottom: 20px; }
         .mode-btn { flex: 1; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; background: transparent; transition: 0.3s; }
@@ -53,6 +55,7 @@
         body.locked-mode .config-panel,
         body.locked-mode #fontSelect,
         body.locked-mode #paperSizeSelect,
+        body.locked-mode .header-margin-label,
         body.locked-mode .btn-share {
             display: none !important;
         }
@@ -109,6 +112,9 @@
                 <option value="a4">A4</option>
                 <option value="b5">B5</option>
             </select>
+            <label class="header-margin-label" title="保存画像のまわりの余白（文字がはみ出す場合はマスをわずかに縮めて、余白の外に出ないようにします）">
+                余白<input type="number" id="marginInput" value="15" min="5" max="50" step="1" onchange="updateAll()" class="margin-input-inline">mm
+            </label>
         </div>
     </div>
 
@@ -215,10 +221,10 @@
     // 共有URLを短くするための処理：初期設定との「差分」だけを短いキー名で持たせ、
     // さらにgzip圧縮してbase64url化する。共有URLには「設定」だけを載せ、
     // 題名・名前・本文は入れない（児童が自分で入力するので、開いたときは初期テンプレートの文言を表示する）。
-    const SHARE_DEFAULTS = { rows: '22', cols: '28', startCol: '3', namePadding: '1', titleOffset: '0', topBlankCols: '0', topBlankRows: '0', ruled: 'on', font: 'gothic', paperSize: 'a4' };
-    const SHARE_SHORT_KEYS = { rows: 'r', cols: 'c', startCol: 's', namePadding: 'p', titleOffset: 'to', topBlankCols: 'tc', topBlankRows: 'tr', ruled: 'ru', font: 'f', paperSize: 'sz' };
-    // フォント・用紙サイズはモードに関係ない共通設定。それ以外は「カスタム」のときだけ意味を持つ
-    const SHARE_SHARED_KEYS = ['font', 'paperSize'];
+    const SHARE_DEFAULTS = { rows: '22', cols: '28', startCol: '3', namePadding: '1', titleOffset: '0', topBlankCols: '0', topBlankRows: '0', ruled: 'on', font: 'gothic', paperSize: 'a4', margin: '15' };
+    const SHARE_SHORT_KEYS = { rows: 'r', cols: 'c', startCol: 's', namePadding: 'p', titleOffset: 'to', topBlankCols: 'tc', topBlankRows: 'tr', ruled: 'ru', font: 'f', paperSize: 'sz', margin: 'mg' };
+    // フォント・用紙サイズ・余白はモードに関係ない共通設定。それ以外は「カスタム」のときだけ意味を持つ
+    const SHARE_SHARED_KEYS = ['font', 'paperSize', 'margin'];
     const SHARE_CUSTOM_ONLY_KEYS = ['rows', 'cols', 'startCol', 'namePadding', 'titleOffset', 'topBlankCols', 'topBlankRows', 'ruled'];
 
     function packShareData(data) {
@@ -285,6 +291,7 @@
         document.getElementById('ruledLinesInput').value = data.ruled || 'on';
         document.getElementById('fontSelect').value = data.font || 'gothic';
         document.getElementById('paperSizeSelect').value = data.paperSize || 'a4';
+        document.getElementById('marginInput').value = data.margin ?? 15;
         currentMode = data.mode === 'custom' ? 'custom' : 'fix';
         document.getElementById('btn-fix').className = currentMode === 'fix' ? 'mode-btn active' : 'mode-btn';
         document.getElementById('btn-custom').className = currentMode === 'custom' ? 'mode-btn active' : 'mode-btn';
@@ -369,6 +376,7 @@
             document.getElementById('ruledLinesInput').value = data.ruled || 'on';
             document.getElementById('fontSelect').value = data.font || 'gothic';
             document.getElementById('paperSizeSelect').value = data.paperSize || 'a4';
+            document.getElementById('marginInput').value = data.margin ?? 15;
             if (data.mode) switchMode(data.mode);
         } else {
             document.getElementById('titleInput').value = DEFAULTS.title;
@@ -413,7 +421,8 @@
             topBlankRows: document.getElementById('topBlankRowsInput').value,
             ruled: document.getElementById('ruledLinesInput').value,
             font: document.getElementById('fontSelect').value,
-            paperSize: document.getElementById('paperSizeSelect').value
+            paperSize: document.getElementById('paperSizeSelect').value,
+            margin: document.getElementById('marginInput').value
         };
         localStorage.setItem(activeStorageKey, JSON.stringify(data));
     }
@@ -460,8 +469,9 @@
         const font = document.getElementById('fontSelect').value;
         const fontClass = font === 'mincho' ? 'font-mincho' : (font === 'maru' ? 'font-maru' : '');
         const fontFamily = font === 'mincho' ? "'Noto Serif JP', serif" : (font === 'maru' ? "'Kosugi Maru', sans-serif" : "'Noto Sans JP', sans-serif");
-        // 用紙サイズの選択は保存画像の縦横比にのみ反映する（画面上のマス目のサイズは変えない）
+        // 用紙サイズ・余白の選択は保存画像にのみ反映する（画面上のマス目のサイズは変えない）
         const paperSize = document.getElementById('paperSizeSelect').value === 'b5' ? 'b5' : 'a4';
+        const marginMm = Math.min(50, Math.max(5, parseInt(document.getElementById('marginInput').value) || 15));
 
         const out = document.getElementById('output-container');
         out.innerHTML = '';
@@ -553,7 +563,7 @@
         }
 
         // 画像保存で使う：画面と全く同じレイアウトデータをそのまま保持しておく
-        lastRenderData = { colData, ROWS, COLS, totalPages, ruled, fontFamily, paperSize };
+        lastRenderData = { colData, ROWS, COLS, totalPages, ruled, fontFamily, paperSize, marginMm };
     }
 
     // ウィンドウの縦幅・横幅に合わせて「パンパン」に自動拡大縮小する
@@ -604,7 +614,8 @@
             topBlankRows: document.getElementById('topBlankRowsInput').value,
             ruled: document.getElementById('ruledLinesInput').value,
             font: document.getElementById('fontSelect').value,
-            paperSize: document.getElementById('paperSizeSelect').value
+            paperSize: document.getElementById('paperSizeSelect').value,
+            margin: document.getElementById('marginInput').value
         };
     }
 
@@ -633,6 +644,7 @@
                 document.getElementById('ruledLinesInput').value = data.ruled || 'on';
                 document.getElementById('fontSelect').value = data.font || 'gothic';
                 document.getElementById('paperSizeSelect').value = data.paperSize || 'a4';
+                document.getElementById('marginInput').value = data.margin ?? 15;
                 if(data.mode) switchMode(data.mode); else updateAll();
             } catch (err) { alert("読込失敗"); }
         };
@@ -705,18 +717,30 @@
     // 実際の描画データ（lastRenderData）から直接Canvasに描くので、
     // 画面のCSS表示（縦書き・罫線・フォント設定）とズレが起きない。
     function drawPageToCanvas(pageIndex, data) {
-        const { colData, ROWS, COLS, ruled, fontFamily, paperSize } = data;
+        const { colData, ROWS, COLS, ruled, fontFamily, paperSize, marginMm } = data;
         const paperMm = paperSize === 'b5' ? { w: 257, h: 182 } : { w: 297, h: 210 };
         const DPI = 300;
         const MM_TO_PX = DPI / 25.4;
         const canvasW = Math.round(paperMm.w * MM_TO_PX);
         const canvasH = Math.round(paperMm.h * MM_TO_PX);
-        const padLeft = 20 * MM_TO_PX, padRight = 20 * MM_TO_PX;
-        const padTop = 15 * MM_TO_PX, padBottom = 15 * MM_TO_PX;
+        const margin = (typeof marginMm === 'number' ? marginMm : 15);
+
+        // このページの列の中に、禁則処理で下にはみ出すマス（extra）が最大何個あるか調べる
+        let maxExtra = 0;
+        for (let c = 0; c < COLS; c++) {
+            const col = colData[pageIndex * COLS + c];
+            if (col && col.extra && col.extra.length > maxExtra) maxExtra = col.extra.length;
+        }
+
+        // 上下の余白は指定値のまま固定し、はみ出しマスの分だけマスの高さ自体を
+        // 少し縮めて余白の外（画像の外）に絶対にはみ出さないようにする。
+        const padLeft = margin * MM_TO_PX, padRight = margin * MM_TO_PX;
+        const padTop = margin * MM_TO_PX;
+        const availableHmm = paperMm.h - margin * 2;
+        const rowHmm = availableHmm / (ROWS + maxExtra);
         const contentW = canvasW - padLeft - padRight;
-        const contentH = canvasH - padTop - padBottom;
         const colW = contentW / COLS;
-        const rowH = contentH / ROWS;
+        const rowH = rowHmm * MM_TO_PX;
         const fontScale = DPI / 96; // 画面のCSS px(96dpi相当)基準を印刷解像度に合わせる
         const fontSizePx = Math.min(22, 550 / ROWS) * fontScale;
 
