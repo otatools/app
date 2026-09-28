@@ -25,7 +25,7 @@
 
         .font-select-inline { width: auto; min-width: 120px; padding: 6px 10px; font-size: 0.85em; }
         .header-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .header-share-btn { flex: none; width: auto; padding: 8px 14px; font-size: 0.85em; }
+        button.header-share-btn { flex: none; width: auto; min-width: 0; padding: 6px 10px; font-size: 0.85em; }
 
         .mode-selector { display: flex; background: #eee; padding: 5px; border-radius: 8px; margin-bottom: 20px; }
         .mode-btn { flex: 1; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; background: transparent; transition: 0.3s; }
@@ -98,7 +98,7 @@
     <div class="header-row">
         <h3>卒業文集清書ツール</h3>
         <div class="header-controls">
-            <button onclick="createShareUrl()" class="btn btn-share header-share-btn">配信用URL作成</button>
+            <button onclick="createShareUrl()" class="btn btn-share header-share-btn">児童用URL作成</button>
             <select id="fontSelect" onchange="updateAll()" class="font-select-inline">
                 <option value="gothic">ゴシック体</option>
                 <option value="mincho">明朝体</option>
