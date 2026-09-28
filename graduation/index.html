@@ -51,9 +51,7 @@
         .line { display: flex; flex-direction: column; height: 100%; position: relative; }
         .cell { border: 0.5px solid #ff8e8e; display: flex; align-items: center; justify-content: center; box-sizing: border-box; writing-mode: vertical-rl; -webkit-writing-mode: vertical-rl; text-orientation: upright; position: relative; }
         
-        .extra-cell { position: absolute; left: 0; width: 100%; display: flex; align-items: center; justify-content: center; writing-mode: vertical-rl; text-orientation: upright; pointer-events: none; }
-        .pos-23 { top: 100%; border-top: none; }
-        .pos-24 { top: calc(100% + (100% / 22)); border-top: none; }
+        .extra-cell { position: absolute; left: 0; width: 100%; display: flex; align-items: center; justify-content: center; writing-mode: vertical-rl; text-orientation: upright; pointer-events: none; border-top: none; }
 
         .force-rotate { display: inline-block !important; transform: rotate(90deg); line-height: 1; }
         .zenkaku-bracket { display: inline-block; transform: none !important; text-orientation: mixed; }
@@ -139,7 +137,8 @@
 <script>
     let currentMode = 'fix';
     let isAutoSaveOn = false;
-    const KEY = 'bungyu_draft_data_v851';
+    const KEY = 'bungyu_draft_data_v853';
+    const OLD_KEYS = ['bungyu_draft_data_v851'];
     const AUTO_SAVE_KEY = 'bungyu_auto_save_enabled';
     const DEFAULTS = { 
         title: "題名", 
@@ -158,7 +157,13 @@
             document.getElementById('btnAutoSave').innerText = '自動保存：ON';
             document.getElementById('btnAutoSave').classList.add('on');
         }
-        const saved = localStorage.getItem(KEY);
+        let saved = localStorage.getItem(KEY);
+        if (!saved) {
+            for (const oldKey of OLD_KEYS) {
+                const oldData = localStorage.getItem(oldKey);
+                if (oldData) { saved = oldData; localStorage.setItem(KEY, oldData); localStorage.removeItem(oldKey); break; }
+            }
+        }
         if (saved) {
             const data = JSON.parse(saved);
             document.getElementById('titleInput').value = data.title || '';
@@ -228,10 +233,12 @@
     }
 
     function generatePaper() {
-        const title = document.getElementById('titleInput').value;
-        const name = document.getElementById('nameInput').value;
+        const titleEl = document.getElementById('titleInput');
+        const nameEl = document.getElementById('nameInput');
+        const title = titleEl.value;
+        const name = nameEl.value;
         const bodyText = document.getElementById('textInput').value;
-        
+
         const ROWS = currentMode === 'fix' ? 22 : (parseInt(document.getElementById('rowsInput').value) || 22);
         const COLS = currentMode === 'fix' ? 28 : (parseInt(document.getElementById('colsInput').value) || 28);
         const startCol = currentMode === 'fix' ? 3 : parseInt(document.getElementById('startColInput').value);
@@ -239,19 +246,28 @@
 
         const out = document.getElementById('output-container');
         out.innerHTML = '';
-        
+
         let colData = [];
-        for(let i=0; i<COLS * 50; i++) colData.push({ cells: Array(ROWS).fill(''), extra: [] });
+        const ensureCol = (idx) => {
+            while (colData.length <= idx) colData.push({ cells: Array(ROWS).fill(''), extra: [] });
+            return colData[idx];
+        };
 
         let tOffset = currentMode === 'fix' ? 7 : 0;
-        for(let i=0; i<title.length && (i+tOffset)<ROWS; i++) colData[0].cells[i+tOffset] = title[i];
-        
-        let nStart = ROWS - name.length - namePadding;
-        for(let i=0; i<name.length && (i+nStart)<ROWS; i++) {
-            if (i+nStart >= 0) colData[1].cells[i+nStart] = name[i];
-        }
+        const maxTitleLen = Math.max(0, ROWS - tOffset);
+        for(let i=0; i<title.length && (i+tOffset)<ROWS; i++) ensureCol(0).cells[i+tOffset] = title[i];
+        titleEl.style.outline = title.length > maxTitleLen ? '2px solid #f44336' : '';
+        titleEl.title = title.length > maxTitleLen ? `題名が長すぎるため、${maxTitleLen}文字目以降が印刷されません。` : '';
 
-        const isEnd = (c) => /[。、）」』）]/.test(c);
+        const maxNameLen = Math.max(0, ROWS - namePadding);
+        let nStart = Math.max(0, ROWS - name.length - namePadding);
+        for(let i=0; i<name.length && (i+nStart)<ROWS; i++) {
+            ensureCol(1).cells[i+nStart] = name[i];
+        }
+        nameEl.style.outline = name.length > maxNameLen ? '2px solid #f44336' : '';
+        nameEl.title = name.length > maxNameLen ? `名前が長すぎるため、${maxNameLen}文字目以降が印刷されません。` : '';
+
+        const isEnd = (c) => /[。、）」』)]/.test(c);
         const isStart = (c) => /[（「『(]/.test(c);
         let tokens = bodyText.match(/[0-9]{1,2}|[０-９]|[^\n]|\n/g) || [];
         let curC = startCol, curR = 0;
@@ -262,21 +278,21 @@
             if (t === '\n') { curC++; curR = 0; continue; }
 
             if (curR === ROWS - 1) {
-                colData[curC].cells[curR] = t;
+                ensureCol(curC).cells[curR] = t;
                 if (isStart(t) && tokens[i+1] && tokens[i+1] !== '\n' && !isEnd(tokens[i+1])) {
-                    colData[curC].extra.push(tokens[i+1]);
+                    ensureCol(curC).extra.push(tokens[i+1]);
                     i++;
                 } else {
                     while(tokens[i+1] && isEnd(tokens[i+1]) && tokens[i+1] !== '\n') {
-                        colData[curC].extra.push(tokens[i+1]);
+                        ensureCol(curC).extra.push(tokens[i+1]);
                         i++;
-                        if (colData[curC].extra.length >= 2) break;
+                        if (ensureCol(curC).extra.length >= 2) break;
                     }
                 }
                 if (tokens[i+1] === '\n') i++;
                 curC++; curR = 0;
             } else {
-                colData[curC].cells[curR] = t;
+                ensureCol(curC).cells[curR] = t;
                 curR++;
                 if (curR >= ROWS) { curC++; curR = 0; }
             }
@@ -306,7 +322,8 @@
                 }
                 colData[idx]?.extra.forEach((ex, ei) => {
                     const exc = document.createElement('div');
-                    exc.className = `extra-cell pos-${23+ei}`;
+                    exc.className = 'extra-cell';
+                    exc.style.top = `calc(100% + (${ei} * (100% / ${ROWS})))`;
                     exc.style.height = `calc(100% / ${ROWS})`;
                     exc.style.fontSize = `${Math.min(22, (550 / ROWS))}px`;
                     let cls = /^[0-9]+$/.test(ex) ? 'tcy' : (/[（）]/.test(ex) ? 'zenkaku-bracket' : (/[()]/.test(ex) ? 'force-rotate' : ''));
