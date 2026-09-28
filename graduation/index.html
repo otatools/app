@@ -13,17 +13,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>卒業文集清書ツール v9.0</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.6.0/dom-to-image.min.js"></script>
+    <link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@400;700&family=Kosugi+Maru&display=swap">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@400;700&family=Kosugi+Maru&display=swap');
         @page { size: A4 landscape; margin: 0; }
         body { background: #f0f0f0; font-family: 'Noto Sans JP', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px 20px 0 20px; margin: 0; }
         
         .no-print { width: 95%; max-width: 850px; background: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
         .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         h3 { margin: 0; color: #1976D2; border-left: 5px solid #1976D2; padding-left: 10px; }
-        
-        #save-status { display: none; }
+
+        .font-select-inline { width: auto; min-width: 120px; padding: 6px 10px; font-size: 0.85em; }
 
         .mode-selector { display: flex; background: #eee; padding: 5px; border-radius: 8px; margin-bottom: 20px; }
         .mode-btn { flex: 1; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; background: transparent; transition: 0.3s; }
@@ -46,18 +46,11 @@
         .btn-auto-save { background: #9e9e9e; flex: 0.8; font-size: 0.85em; }
         .btn-auto-save.on { background: #4CAF50; }
 
-        /* 共有URLで開いたときは編集UIを隠し、画像保存だけ残す */
-        body.locked-mode .mode-selector,
-        body.locked-mode .config-panel,
-        body.locked-mode .input-group,
-        body.locked-mode .btn-save,
-        body.locked-mode .btn-load,
-        body.locked-mode #fileInput,
-        body.locked-mode .btn-share,
-        body.locked-mode .btn-auto-save,
-        body.locked-mode .btn-reset {
-            display: none !important;
-        }
+        /* 共有URLで開いたときは編集UIを丸ごと隠し、画像保存だけの小さいバーに差し替える */
+        .locked-toolbar { display: none; width: 95%; max-width: 300px; margin: 0 auto 15px auto; }
+        .locked-toolbar .btn { width: 100%; }
+        body.locked-mode .no-print { display: none !important; }
+        body.locked-mode .locked-toolbar { display: block; }
 
         .footer-info { margin-top: 20px; margin-bottom: 40px; font-size: 12px; color: #888; text-align: center; }
 
@@ -97,25 +90,16 @@
 <div class="no-print">
     <div class="header-row">
         <h3>卒業文集清書ツール</h3>
-        <span id="save-status"></span>
+        <select id="fontSelect" onchange="updateAll()" class="font-select-inline">
+            <option value="gothic">ゴシック体</option>
+            <option value="mincho">明朝体</option>
+            <option value="maru">丸ゴシック</option>
+        </select>
     </div>
-    
+
     <div class="mode-selector">
         <button id="btn-fix" class="mode-btn active" onclick="switchMode('fix')">野田小用（固定設定）</button>
         <button id="btn-custom" class="mode-btn" onclick="switchMode('custom')">カスタム（自由設定）</button>
-    </div>
-
-    <div class="config-panel font-selector">
-        <div class="config-grid">
-            <div class="config-group">
-                <label>フォント</label>
-                <select id="fontSelect" onchange="updateAll()">
-                    <option value="gothic">ゴシック体</option>
-                    <option value="mincho">明朝体</option>
-                    <option value="maru">丸ゴシック</option>
-                </select>
-            </div>
-        </div>
     </div>
 
     <div id="custom-configs" class="config-panel" style="display: none;">
@@ -179,6 +163,10 @@
         <button id="btnAutoSave" onclick="toggleAutoSave()" class="btn btn-auto-save">自動保存：OFF</button>
         <button onclick="resetData()" class="btn btn-reset">リセット</button>
     </div>
+</div>
+
+<div class="locked-toolbar">
+    <button onclick="saveAsImage()" id="btnSaveImageLocked" class="btn btn-image">画像で保存（JPEG）</button>
 </div>
 
 <div class="footer-info">
@@ -540,18 +528,20 @@
         }
     }
 
-    // A4印刷でも粗くならないよう、原稿用紙を高解像度のJPEG画像として書き出す
+    // A4印刷でも粗くならないよう、原稿用紙を高解像度のJPEG画像として書き出す。
+    // html2canvasは縦書き(writing-mode)の再現が弱いため、実際のDOM/CSSをそのまま
+    // ブラウザに描画させるdom-to-image（SVG foreignObject方式）を使う。
     async function saveAsImage() {
         const papers = document.querySelectorAll('.paper');
         if (!papers.length) return;
-        if (typeof html2canvas === 'undefined') {
+        if (typeof domtoimage === 'undefined') {
             alert('画像保存の機能を読み込めませんでした。通信環境を確認して再読み込みしてください。');
             return;
         }
 
-        const btn = document.getElementById('btnSaveImage');
-        const originalLabel = btn ? btn.innerText : '';
-        if (btn) { btn.innerText = '画像を作成中…'; btn.disabled = true; }
+        const buttons = [document.getElementById('btnSaveImage'), document.getElementById('btnSaveImageLocked')].filter(Boolean);
+        const originalLabels = buttons.map(b => b.innerText);
+        buttons.forEach(b => { b.innerText = '画像を作成中…'; b.disabled = true; });
 
         const wrapper = document.getElementById('output-wrapper');
         const container = document.getElementById('output-container');
@@ -565,12 +555,19 @@
 
         try {
             for (let i = 0; i < papers.length; i++) {
-                const canvas = await html2canvas(papers[i], {
-                    scale: PRINT_SCALE,
-                    backgroundColor: '#ffffff',
-                    useCORS: true
+                const node = papers[i];
+                const rectWidth = node.offsetWidth;
+                const rectHeight = node.offsetHeight;
+                const dataUrl = await domtoimage.toJpeg(node, {
+                    quality: 0.95,
+                    bgcolor: '#ffffff',
+                    width: rectWidth * PRINT_SCALE,
+                    height: rectHeight * PRINT_SCALE,
+                    style: {
+                        transform: `scale(${PRINT_SCALE})`,
+                        transformOrigin: 'top left'
+                    }
                 });
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
                 const a = document.createElement('a');
                 a.href = dataUrl;
                 const base = (nameInput.value || '原稿').trim();
@@ -587,7 +584,7 @@
             papers.forEach(p => p.classList.remove('exporting'));
             wrapper.style.overflow = '';
             autoScalePaper();
-            if (btn) { btn.innerText = originalLabel; btn.disabled = false; }
+            buttons.forEach((b, idx) => { b.innerText = originalLabels[idx]; b.disabled = false; });
         }
     }
 </script>
