@@ -74,7 +74,7 @@
 
         .force-rotate { display: inline-block !important; transform: rotate(90deg); line-height: 1; }
         .zenkaku-bracket { display: inline-block; transform: none !important; text-orientation: mixed; }
-        .tcy { text-combine-upright: all; -webkit-text-combine: horizontal; font-weight: bold; }
+        .tcy { text-combine-upright: all; -webkit-text-combine: horizontal; }
         /* 句読点（。、）は縦書きのマス目内で右上寄りに書くのが原稿用紙の慣習 */
         /* 画面上の表示は元の中央寄せに戻す（右上寄せは保存画像の側だけで行う） */
         .kuten { display: inline-block; }
@@ -203,6 +203,51 @@
         if (el.value === DEFAULTS[key]) { el.value = ''; updateAll(); }
     }
 
+    // 共有URLを短くするための処理：短いキー名に詰め替え、gzip圧縮してbase64url化する
+    function packShareData(data) {
+        return {
+            t: data.title, n: data.name, b: data.body, m: data.mode,
+            r: data.rows, c: data.cols, s: data.startCol, p: data.namePadding,
+            tc: data.topBlankCols, tr: data.topBlankRows, ru: data.ruled, f: data.font
+        };
+    }
+
+    function unpackShareData(obj) {
+        // 短縮キー('t'など)が無ければ、旧形式（フルネームのキー）とみなしてそのまま使う
+        if (!('t' in obj) && !('b' in obj)) return obj;
+        return {
+            title: obj.t, name: obj.n, body: obj.b, mode: obj.m,
+            rows: obj.r, cols: obj.c, startCol: obj.s, namePadding: obj.p,
+            topBlankCols: obj.tc, topBlankRows: obj.tr, ruled: obj.ru, font: obj.f
+        };
+    }
+
+    function bytesToBase64url(bytes) {
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    function base64urlToBytes(b64url) {
+        let base64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
+        while (base64.length % 4) base64 += '=';
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return bytes;
+    }
+
+    async function compressToBase64url(text) {
+        const stream = new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'));
+        const buffer = await new Response(stream).arrayBuffer();
+        return bytesToBase64url(new Uint8Array(buffer));
+    }
+
+    async function decompressFromBase64url(b64url) {
+        const stream = new Blob([base64urlToBytes(b64url)]).stream().pipeThrough(new DecompressionStream('gzip'));
+        return await new Response(stream).text();
+    }
+
     // 共有URL（#view=...）で開かれた場合は、設定を復元した上で編集UIを隠す
     function applySharedData(data) {
         document.getElementById('titleInput').value = data.title || '';
@@ -222,13 +267,22 @@
         document.getElementById('titleLabel').innerText = currentMode === 'fix' ? '題名（8マス目から）' : '題名';
     }
 
-    function tryLoadSharedView() {
+    async function tryLoadSharedView() {
         if (!location.hash.startsWith('#view=')) return false;
         try {
             const encoded = location.hash.slice('#view='.length);
-            activeStorageKey = 'bungyu_shared_v1_' + encoded;
-            const json = decodeURIComponent(escape(atob(encoded)));
-            const sharedData = JSON.parse(json);
+            activeStorageKey = 'bungyu_shared_v2_' + encoded;
+            let json;
+            const marker = encoded[0];
+            if (marker === 'z') {
+                json = await decompressFromBase64url(encoded.slice(1));
+            } else if (marker === 'j') {
+                json = new TextDecoder().decode(base64urlToBytes(encoded.slice(1)));
+            } else {
+                // マーカーの無い旧形式（無圧縮・フルネームキーのbase64）
+                json = decodeURIComponent(escape(atob(encoded)));
+            }
+            const sharedData = unpackShareData(JSON.parse(json));
             // このリンクで前に入力・保存した下書きがあれば、それを優先して復元する
             const savedDraft = localStorage.getItem(activeStorageKey);
             applySharedData(savedDraft ? JSON.parse(savedDraft) : sharedData);
@@ -240,8 +294,8 @@
         }
     }
 
-    window.onload = () => {
-        if (tryLoadSharedView()) {
+    window.onload = async () => {
+        if (await tryLoadSharedView()) {
             const autoSavePref = localStorage.getItem(AUTO_SAVE_KEY);
             if (autoSavePref === 'true') {
                 isAutoSaveOn = true;
@@ -541,10 +595,19 @@
     }
 
     // 現在の設定を復元専用のURL（#view=...）として書き出す。読んだ側は編集できない。
-    function createShareUrl() {
-        const data = collectSettings();
-        const json = JSON.stringify(data);
-        const encoded = btoa(unescape(encodeURIComponent(json)));
+    // 短いキー名＋gzip圧縮でURLをできるだけ短くする（対応ブラウザのみ。非対応時は無圧縮にフォールバック）。
+    async function createShareUrl() {
+        const json = JSON.stringify(packShareData(collectSettings()));
+        let encoded;
+        try {
+            if (typeof CompressionStream !== 'undefined') {
+                encoded = 'z' + await compressToBase64url(json);
+            } else {
+                encoded = 'j' + bytesToBase64url(new TextEncoder().encode(json));
+            }
+        } catch (e) {
+            encoded = 'j' + bytesToBase64url(new TextEncoder().encode(json));
+        }
         const url = `${location.origin}${location.pathname}#view=${encoded}`;
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(url).then(() => {
@@ -563,14 +626,23 @@
         ctx.fillStyle = '#222';
         ctx.font = `${fontSizePx}px ${fontFamily}`;
         if (kind === 'tcy') {
-            // text-combine-upright の再現：2文字を1マス分の幅に収める。
-            // 横方向だけ縮めると線が細く見えるので太字にして補う。
-            ctx.font = `bold ${fontSizePx}px ${fontFamily}`;
-            ctx.save();
-            ctx.translate(cx, cy);
-            ctx.scale(0.55, 1);
-            ctx.fillText(displayChar, 0, 0);
-            ctx.restore();
+            // text-combine-upright の再現：半角文字は全角の約半分の幅なので、
+            // 縮めず等倍のまま横に並べれば自然に1マス分に収まる。
+            const chars = displayChar.split('');
+            if (chars.length >= 2) {
+                const widths = chars.map(c => ctx.measureText(c).width);
+                const totalWidth = widths.reduce((a, b) => a + b, 0);
+                ctx.save();
+                ctx.textAlign = 'left';
+                let x = cx - totalWidth / 2;
+                for (let i = 0; i < chars.length; i++) {
+                    ctx.fillText(chars[i], x, cy);
+                    x += widths[i];
+                }
+                ctx.restore();
+            } else {
+                ctx.fillText(displayChar, cx, cy);
+            }
         } else if (kind === 'zenkaku-bracket' || kind === 'force-rotate') {
             ctx.save();
             ctx.translate(cx, cy);
