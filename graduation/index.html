@@ -24,6 +24,8 @@
         h3 { margin: 0; color: #1976D2; border-left: 5px solid #1976D2; padding-left: 10px; }
 
         .font-select-inline { width: auto; min-width: 120px; padding: 6px 10px; font-size: 0.85em; }
+        .header-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .header-share-btn { flex: none; width: auto; padding: 8px 14px; font-size: 0.85em; }
 
         .mode-selector { display: flex; background: #eee; padding: 5px; border-radius: 8px; margin-bottom: 20px; }
         .mode-btn { flex: 1; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; background: transparent; transition: 0.3s; }
@@ -95,11 +97,14 @@
 <div class="no-print">
     <div class="header-row">
         <h3>卒業文集清書ツール</h3>
-        <select id="fontSelect" onchange="updateAll()" class="font-select-inline">
-            <option value="gothic">ゴシック体</option>
-            <option value="mincho">明朝体</option>
-            <option value="maru">丸ゴシック</option>
-        </select>
+        <div class="header-controls">
+            <button onclick="createShareUrl()" class="btn btn-share header-share-btn">配信用URL作成</button>
+            <select id="fontSelect" onchange="updateAll()" class="font-select-inline">
+                <option value="gothic">ゴシック体</option>
+                <option value="mincho">明朝体</option>
+                <option value="maru">丸ゴシック</option>
+            </select>
+        </div>
     </div>
 
     <div class="mode-selector">
@@ -164,7 +169,6 @@
         <button onclick="document.getElementById('fileInput').click()" class="btn btn-load">ファイル読込</button>
         <input type="file" id="fileInput" style="display:none" accept=".txt" onchange="loadFromFile(event)">
         <button onclick="saveAsImage()" id="btnSaveImage" class="btn btn-image">画像で保存（JPEG）</button>
-        <button onclick="createShareUrl()" class="btn btn-share">URLを作成</button>
         <button id="btnAutoSave" onclick="toggleAutoSave()" class="btn btn-auto-save">自動保存：OFF</button>
         <button onclick="resetData()" class="btn btn-reset">リセット</button>
     </div>
