@@ -119,7 +119,7 @@ h1{ font-size:1.5rem; text-align:center; letter-spacing:.05em; }
 .tl-card .year{
   align-self:stretch; flex:0 0 auto;
   margin:-4px -3px 4px; padding:4px 4px;
-  font-weight:900; color:#fff; font-size:1rem; line-height:1.3; letter-spacing:.02em;
+  font-weight:900; color:#fff; font-size:1.15rem; line-height:1.3; letter-spacing:.02em;
   background:linear-gradient(135deg, var(--accent), #8a2412);
   border-radius:8px 8px 0 0;
 }
@@ -2105,13 +2105,17 @@ function discardPendingGhost(cardId){
   if(g){ g.remove(); delete online.pendingGhosts[cardId]; }
 }
 function onlinePlace(cardId, gapIndex, sourceEl, ghostEl){
-  if(uiLocked || online.busy){ if(ghostEl) ghostEl.remove(); return; }
+  // 早期リターンするときは、ドラッグの分身(ghost)と隠した手札(sourceEl)を必ず元に戻す。
+  // 戻さないと、ghostが画面に残ったまま手札も隠れた状態になり、操作できず
+  // 「フリーズ」したように見えてしまう（次に部屋の状態が届くまで直らない）。
+  if(uiLocked || online.busy){ if(ghostEl) ghostEl.remove(); if(sourceEl) sourceEl.style.visibility = ''; return; }
   var room = online.room;
-  if(!room || room.status !== 'playing'){ if(ghostEl) ghostEl.remove(); return; }
+  if(!room || room.status !== 'playing'){ if(ghostEl) ghostEl.remove(); if(sourceEl) sourceEl.style.visibility = ''; return; }
   var me = findPlayerIndex(room, online.myKey);
   if(room.turn !== me){
     showToast('今は ' + (room.players[room.turn] ? room.players[room.turn].name : '') + ' さんの番だよ', 'ng');
     if(ghostEl) ghostEl.remove();
+    if(sourceEl) sourceEl.style.visibility = '';
     return;
   }
   uiLocked = true;
@@ -2495,7 +2499,14 @@ function finishSoloStep(){
 }
 
 function handleSoloPlacement(gapIndex, gapEl, sourceEl, ghostEl){
-  if(uiLocked) return;
+  if(uiLocked){
+    // 配る演出中などに差し込まれた場合、ここで何も片づけずに戻ると
+    // ドラッグの分身(ghost)が画面に残り、元の手札も隠れたまま(visibility:hidden)に
+    // なってしまい、操作できなくなって「フリーズ」したように見えてしまう。
+    if(ghostEl) ghostEl.remove();
+    if(sourceEl) sourceEl.style.visibility = '';
+    return;
+  }
   uiLocked = true;
   var card = game.current;
   var correctIdx = correctGapIndex(game.timeline, card.year);
