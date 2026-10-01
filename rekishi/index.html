@@ -66,12 +66,14 @@ h1{ font-size:1.5rem; text-align:center; letter-spacing:.05em; }
 }
 .hud .turn-label{ font-weight:700; font-size:.95rem; }
 .hud .deck-count{ font-size:.75rem; color:#6b5c42; }
-/* ソロ専用：ミスの回数を、画面上部中央の勾玉3つで見せる（水色→ミスのぶんだけ赤に）。
+/* ソロ専用：残り時間・ミスの勾玉・正解数を、画面上部中央にひとまとめで見せる。
    #game-screenが基準のposition:relativeなので、hud自体の幅・高さには影響しない。 */
-.miss-gems{
+.solo-stats{
   position:absolute; top:10px; left:50%; transform:translateX(-50%);
-  display:flex; gap:5px; align-items:center; z-index:1; pointer-events:none;
+  display:flex; align-items:center; gap:10px; z-index:1; pointer-events:none;
+  font-size:.8rem; font-weight:700; color:#4a4436; white-space:nowrap;
 }
+.miss-gems{ display:flex; gap:5px; align-items:center; }
 .miss-gems .gem{ position:relative; width:16px; height:23px; }
 .miss-gems .gem::before, .miss-gems .gem::after{
   content:''; position:absolute; inset:0;
@@ -872,8 +874,10 @@ h1{ font-size:1.5rem; text-align:center; letter-spacing:.05em; }
     <div class="turn-banner" id="turn-banner" aria-hidden="true"><span>あなたの番です</span></div>
     <div class="hud">
       <div class="turn-label" id="turn-label">プレイヤー1の番</div>
-      <div class="miss-gems" id="miss-gems" hidden aria-hidden="true">
-        <span class="gem"></span><span class="gem"></span><span class="gem"></span>
+      <div class="solo-stats" id="solo-stats" hidden aria-hidden="true">
+        <span class="solo-time" id="solo-time">90秒</span>
+        <span class="miss-gems" id="miss-gems"><span class="gem"></span><span class="gem"></span><span class="gem"></span></span>
+        <span class="solo-correct" id="solo-correct">正解 0枚</span>
       </div>
       <div class="deck-count" id="deck-count">山札:0 残り時間:--</div>
     </div>
@@ -2668,7 +2672,7 @@ function renderHud(){
   if(!game) return;
   var turnLabel = document.getElementById('turn-label');
   var deckCount = document.getElementById('deck-count');
-  var missGems = document.getElementById('miss-gems');
+  var soloStats = document.getElementById('solo-stats');
 
   if(game.type === 'online'){
     var r = game.room, ps = r.players || [], cur = ps[r.turn];
@@ -2676,14 +2680,17 @@ function renderHud(){
     var myTurn = !!(cur && cur.key === online.myKey && r.status === 'playing');
     turnLabel.textContent = (r.status === 'finished') ? '対戦終了' : '';
     deckCount.textContent = '山札:' + (r.deck || []).length + '枚';
-    missGems.hidden = true;
+    soloStats.hidden = true;
     if(myTurn && !online.wasMyTurn) showMyTurnBanner();
     online.wasMyTurn = myTurn;
   } else {
-    turnLabel.textContent = '正解 ' + game.correctCount + '枚';
-    deckCount.textContent = '山札:' + game.deck.length + '枚　残り時間:' + game.timeLeft + '秒';
-    missGems.hidden = false;
-    missGems.querySelectorAll('.gem').forEach(function(gem, i){
+    // 「正解N枚」「山札:N枚」はやめて、残り時間・勾玉・正解数を中央にひとまとめで見せる
+    turnLabel.textContent = '';
+    deckCount.textContent = '';
+    soloStats.hidden = false;
+    document.getElementById('solo-time').textContent = game.timeLeft + '秒';
+    document.getElementById('solo-correct').textContent = '正解 ' + game.correctCount + '枚';
+    soloStats.querySelectorAll('.gem').forEach(function(gem, i){
       gem.classList.toggle('is-miss', i < game.missCount);
     });
   }
