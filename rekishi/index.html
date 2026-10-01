@@ -2061,8 +2061,6 @@ function playRoomMove(prev, room){
   var mv = room.lastMove;
   var card = CARD_BY_ID[mv.cardId];
   var mine = (mv.by === online.myKey);
-  var who = mine ? '' : (playerName(room, mv.by) + '：');
-  showToast(who + (mv.correct ? '正解！' : '残念…正しい位置に入れたよ'), mv.correct ? 'ok' : 'ng');
   playJudgeMark(mv.correct);
 
   syncGameFromRoom(prev);                                  // ひとつ前の年表から、この1枚を差し込む
@@ -2512,7 +2510,6 @@ function handleSoloPlacement(gapIndex, gapEl, sourceEl, ghostEl){
   var correctIdx = correctGapIndex(game.timeline, card.year);
 
   if(isCorrectGapIndex(game.timeline, card.year, gapIndex)){
-    showToast('正解！', 'ok');
     playJudgeMark(true);
     game.correctCount++;
     insertCardWithAnimation(card, correctIdx, sourceEl, function(){
@@ -2524,7 +2521,6 @@ function handleSoloPlacement(gapIndex, gapEl, sourceEl, ghostEl){
 
   // まちがえたときは、そのカードを正しい位置に入れて見せる
   game.missCount++;
-  showToast('残念…正しい位置に入れたよ', 'ng');
   playJudgeMark(false);
   insertCardWithAnimation(card, correctIdx, sourceEl, function(){
     finishSoloStep();
