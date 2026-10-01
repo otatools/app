@@ -2953,7 +2953,7 @@ function fitHandCards(){
   var w = Math.floor((avail - gap * (cols - 1)) / cols);
   if(w < 78 && gap > 2 && !isNarrow){ gap = 8;  w = Math.floor((avail - gap * (cols - 1)) / cols); }
   if(w < 68 && gap > 2 && !isNarrow){ gap = 6;  w = Math.floor((avail - gap * (cols - 1)) / cols); }
-  w = Math.max(52, Math.min(230, w));                 // 小さすぎても大きすぎてもだめ
+  w = Math.max(52, Math.min(270, w));                 // 小さすぎても大きすぎてもだめ
   row.style.setProperty('--handgap', gap + 'px');
   row.style.setProperty('--handw', w + 'px');
   /* 段の間の縦のすき間。.selectedで持ち上がる分(translateY(-16px)+scale(1.14))を
