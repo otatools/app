@@ -649,8 +649,8 @@ h1{ font-size:1.5rem; text-align:center; letter-spacing:.05em; }
   font-size:.85em; font-weight:900; color:#fdfcf7; background:#4a4436;
 }
 .player-chip.is-turn .me-badge{ background:#c0392b; }
-.hand-row.is-waiting{ pointer-events:none; }
-.hand-row.is-waiting .hand-card{ opacity:.55; }
+.hand-row.is-waiting, .hand-row.is-locked{ pointer-events:none; }
+.hand-row.is-waiting .hand-card, .hand-row.is-locked .hand-card{ opacity:.55; }
 .hand-empty-msg{ font-family:var(--mincho); }
 /* 開始ボタン（トップメニューのボタンと同じ、線だけのデザイン） */
 .wa-start{
@@ -2541,8 +2541,10 @@ function handleSoloPlacement(gapIndex, gapEl, sourceEl, ghostEl){
     playJudgeMark(true);
     game.correctCount++;
     insertCardWithAnimation(card, correctIdx, sourceEl, function(){
-      finishSoloStep();
+      // 次の手札を描く(renderGame)前にロックを外しておかないと、
+      // 描いた直後の手札がロックされたままになってしまう
       uiLocked = false;
+      finishSoloStep();
     }, ghostEl);
     return;
   }
@@ -2551,8 +2553,8 @@ function handleSoloPlacement(gapIndex, gapEl, sourceEl, ghostEl){
   game.missCount++;
   playJudgeMark(false);
   insertCardWithAnimation(card, correctIdx, sourceEl, function(){
-    finishSoloStep();
     uiLocked = false;
+    finishSoloStep();
   }, ghostEl);
 }
 
@@ -2742,7 +2744,13 @@ function playDealAnimation(cardEls, onDone){
     T(function(){ card.classList.remove('tl-flipping'); }, flipAt + FLIP_MS);
   });
   var totalMs = flipPhaseStart + (cardEls.length - 1) * FLIP_STAGGER + FLIP_MS;
-  T(function(){ uiLocked = false; if(onDone) onDone(); }, totalMs + 30);
+  T(function(){
+    uiLocked = false;
+    // 配り終わった瞬間、再描画を待たずにその場で手札を操作できるようにする
+    var row = document.getElementById('hand-row');
+    if(row) row.classList.remove('is-locked');
+    if(onDone) onDone();
+  }, totalMs + 30);
 }
 
 /* ---- 場札のスクロールバー（カードが増えて横に収まらない時、下のバーでも操作できるようにする） ---- */
@@ -2902,6 +2910,7 @@ function renderHandOnline(me, myTurn){
   var row = document.getElementById('hand-row');
   row.innerHTML = '';
   row.classList.toggle('is-waiting', !myTurn);          // 自分の番でないときは触れない
+  row.classList.toggle('is-locked', uiLocked);          // 場札が配り終わる/動いている最中は触れない
   if(!me || !(me.hand || []).length){
     row.innerHTML = '<div class="hand-empty-msg">手札がありません</div>';
     fitHandCards();
@@ -2941,6 +2950,7 @@ function renderHandSolo(){
   var row = document.getElementById('hand-row');
   row.innerHTML = '';
   row.classList.remove('is-waiting');
+  row.classList.toggle('is-locked', uiLocked);          // 場札が配り終わる/動いている最中は触れない
   if(!game.current) return;
   var el = document.createElement('div');
   el.className = 'hand-card selected';
@@ -3139,9 +3149,10 @@ function renderGame(dealAnimate, onDealDone){
     }, dealAnimate);
     renderPlayerStrip(r);
     // 誰の番かは対戦相手一覧(player-strip)の名前を赤く囲んで示すので、ここでは繰り返さない
-    hint.textContent = (r.status === 'finished' || !myTurn) ? ''
-      : sel ? (sel.name + ' を年表のどこに置くか ▲ をタップ／指でドラッグ')
-            : '手札のカードを選んでね(タップ or ドラッグ)';
+    // 「どこに置くか…ドラッグ」の文章は長すぎて1行に収まらず省略されてしまうので、
+    // カードを選んだあとは何も表示しない（選ぶ前の案内だけ出す）
+    hint.textContent = (r.status === 'finished' || !myTurn || sel) ? ''
+      : '手札のカードを選んでね(タップ or ドラッグ)';
     // hint.hidden は切りかえない：表示/非表示を切りかえると高さが0になり、そのぶん
     // 手札の大きさ・位置が自分の番と相手の番で違って見えてしまう（空でも常に同じ高さ）
     // player-strip・hint-bar を先に確定させてから手札を描く：手札の大きさは残りの高さ
@@ -3155,7 +3166,11 @@ function renderGame(dealAnimate, onDealDone){
       handleSoloPlacement(gapIndex, gapEl, srcEl);
     }, dealAnimate, onDealDone);
     renderHandSolo();
-    hint.textContent = game.current ? (game.current.name + ' を年表のどこに置くか ▲ をタップ／指でドラッグ') : '';
+    // 「どこに置くか…ドラッグ」の文章は長すぎて1行に収まらず省略されてしまうので、
+    // 常に表示していたこの案内はやめる。ソロには自分の番/相手の番の区別がなく
+    // 常にこの空の状態なので、消しても高さが場面によってずれる心配はない
+    // （消して浮いた高さぶん、手札を少し大きく表示できる）
+    hint.textContent = '';
     hint.hidden = !hint.textContent;
   }
 }
