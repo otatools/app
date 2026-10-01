@@ -244,6 +244,18 @@ h1{ font-size:1.5rem; text-align:center; letter-spacing:.05em; }
   width:100%; aspect-ratio:1.45; object-fit:cover; border-radius:8%; margin-bottom:4px; flex:0 0 auto; display:block;
   transition:aspect-ratio .45s cubic-bezier(.4,0,.2,1), object-position .45s cubic-bezier(.4,0,.2,1);
 }
+/* 場札の年号帯は、手札には無いもの。着地の瞬間にいきなり出ると不自然なので、
+   着地演出のあいだに上から「にゅーっ」と畳んだ状態(高さ0)から広げる。
+   JS側(playFlyAnimation)が開始値・終了値をinline styleで切りかえる。 */
+.fly-card .year{
+  width:100%; box-sizing:border-box; overflow:hidden; flex:0 0 auto;
+  margin:-3px -3px 0; max-height:0; opacity:0; padding:0 4px;
+  font-weight:900; color:#fff; font-size:1.15rem; line-height:1.3; letter-spacing:.02em;
+  background:linear-gradient(135deg, var(--accent), #8a2412);
+  border-radius:10px 10px 0 0;
+  transition:max-height .45s cubic-bezier(.4,0,.2,1), opacity .45s cubic-bezier(.4,0,.2,1),
+             padding-top .45s cubic-bezier(.4,0,.2,1), padding-bottom .45s cubic-bezier(.4,0,.2,1);
+}
 .fly-card .img-ph{ background:#eadfc4; }
 /* 文字サイズは飛んでいる間、手札での大きさ→場札での大きさへなめらかに変わるよう
    JS側(setFlyCardFontFromSource/ToTimelineSize)で始点・終点をinline styleにセットする。
@@ -1661,6 +1673,17 @@ function playFlyAnimation(sourceEl, target, onDone, ghostEl, cardId){
   // 手札での実際の文字の大きさから始める（飛び始めた瞬間に文字だけ小さくならないように）
   setFlyCardFontFromSource(clone, sourceEl);
 
+  // 年号の帯は手札には無いので、はじめは畳んだ状態(高さ0)で用意しておき、
+  // 着地のタイミングで他のサイズ変化と同時に広げる（にゅーっと上から降りてくる見た目になる）。
+  var yearEl = clone.querySelector('.year');
+  if(!yearEl){
+    yearEl = document.createElement('div');
+    yearEl.className = 'year';
+    var yc = CARD_BY_ID[cardId];
+    yearEl.textContent = yc ? (yc.year + '年') : '';
+    clone.insertBefore(yearEl, clone.firstChild);
+  }
+
   if(sourceEl) sourceEl.style.visibility = 'hidden';
 
   requestAnimationFrame(function(){
@@ -1677,6 +1700,10 @@ function playFlyAnimation(sourceEl, target, onDone, ghostEl, cardId){
         clonePic.style.aspectRatio = '1.05';   // 場札のイラスト比率へなめらかに合わせる
         clonePic.style.objectPosition = tlImgPosX(cardId) + '% 50%'; // 場札の左右位置へなめらかに合わせる
       }
+      yearEl.style.maxHeight = '48px';
+      yearEl.style.opacity = '1';
+      yearEl.style.paddingTop = '4px';
+      yearEl.style.paddingBottom = '4px';
     });
   });
 
