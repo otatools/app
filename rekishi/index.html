@@ -248,12 +248,14 @@ h1{ font-size:1.5rem; text-align:center; letter-spacing:.05em; }
    着地演出のあいだに上から「にゅーっ」と畳んだ状態(高さ0)から広げる。
    JS側(playFlyAnimation)が開始値・終了値をinline styleで切りかえる。 */
 .fly-card .year{
-  width:100%; box-sizing:border-box; overflow:hidden; flex:0 0 auto;
-  margin:-3px -3px 0; max-height:0; opacity:0; padding:0 4px;
+  align-self:stretch; overflow:hidden; flex:0 0 auto;
+  margin:-3px -3px 0; max-height:0; padding:0 4px;
   font-weight:900; color:#fff; font-size:1.15rem; line-height:1.3; letter-spacing:.02em;
   background:linear-gradient(135deg, var(--accent), #8a2412);
   border-radius:10px 10px 0 0;
-  transition:max-height .45s cubic-bezier(.4,0,.2,1), opacity .45s cubic-bezier(.4,0,.2,1),
+  /* opacityは付けない：途中で半透明になると地の生成り色と混ざって赤がピンクっぽく
+     見えてしまう。高さ(max-height)だけで巻き物を広げるように見せる。 */
+  transition:max-height .45s cubic-bezier(.4,0,.2,1),
              padding-top .45s cubic-bezier(.4,0,.2,1), padding-bottom .45s cubic-bezier(.4,0,.2,1);
 }
 .fly-card .img-ph{ background:#eadfc4; }
@@ -1701,7 +1703,6 @@ function playFlyAnimation(sourceEl, target, onDone, ghostEl, cardId){
         clonePic.style.objectPosition = tlImgPosX(cardId) + '% 50%'; // 場札の左右位置へなめらかに合わせる
       }
       yearEl.style.maxHeight = '48px';
-      yearEl.style.opacity = '1';
       yearEl.style.paddingTop = '4px';
       yearEl.style.paddingBottom = '4px';
     });
