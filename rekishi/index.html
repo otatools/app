@@ -2731,7 +2731,7 @@ function fitFieldCards(){
   var wrap = document.getElementById('timeline-wrap');
   var gameScreen = document.getElementById('game-screen');
   if(!wrap || !gameScreen) return;
-  var REFERENCE_H = 580;   // この高さ以上あれば場札は縮めない
+  var REFERENCE_H = 750;   // この高さ以上あれば場札は縮めない
   var MIN_SCALE = 0.65;
   var scale = Math.max(MIN_SCALE, Math.min(1, gameScreen.clientHeight / REFERENCE_H));
   var cardw = Math.round(100 * scale);
