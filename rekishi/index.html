@@ -66,6 +66,23 @@ h1{ font-size:1.5rem; text-align:center; letter-spacing:.05em; }
 }
 .hud .turn-label{ font-weight:700; font-size:.95rem; }
 .hud .deck-count{ font-size:.75rem; color:#6b5c42; }
+/* ソロ専用：ミスの回数を、画面上部中央の勾玉3つで見せる（水色→ミスのぶんだけ赤に）。
+   #game-screenが基準のposition:relativeなので、hud自体の幅・高さには影響しない。 */
+.miss-gems{
+  position:absolute; top:10px; left:50%; transform:translateX(-50%);
+  display:flex; gap:5px; align-items:center; z-index:1; pointer-events:none;
+}
+.miss-gems .gem{
+  position:relative; width:13px; height:17px;
+  background:#4fc3f7; border-radius:0 70% 70% 70%; transform:rotate(45deg);
+  box-shadow:0 1px 2px rgba(0,0,0,.25);
+  transition:background-color .3s ease;
+}
+.miss-gems .gem::after{
+  content:''; position:absolute; top:18%; left:18%; width:30%; height:30%;
+  border-radius:50%; background:var(--bg);
+}
+.miss-gems .gem.is-miss{ background:#c0392b; }
 
 #timeline-wrap{
   /* 場札は常に同じ高さ(tl-grid: 218px+34pxの行+すき間+余白 ≒267px)なので、
@@ -852,6 +869,9 @@ h1{ font-size:1.5rem; text-align:center; letter-spacing:.05em; }
     <div class="turn-banner" id="turn-banner" aria-hidden="true"><span>あなたの番です</span></div>
     <div class="hud">
       <div class="turn-label" id="turn-label">プレイヤー1の番</div>
+      <div class="miss-gems" id="miss-gems" hidden aria-hidden="true">
+        <span class="gem"></span><span class="gem"></span><span class="gem"></span>
+      </div>
       <div class="deck-count" id="deck-count">山札:0 残り時間:--</div>
     </div>
     <div class="player-strip" id="player-strip" hidden></div>
@@ -2517,7 +2537,8 @@ document.addEventListener('visibilitychange', function(){
 
 function finishSoloStep(){
   if(game.missCount >= 3){
-    endSoloGame();
+    // 3つ目の勾玉が赤くなったのが見えるよう、少し間を置いてから結果画面にする
+    T(function(){ endSoloGame(); }, 1000);
     return;
   }
   if(game.deck.length === 0){
@@ -2544,6 +2565,7 @@ function handleSoloPlacement(gapIndex, gapEl, sourceEl, ghostEl){
   if(isCorrectGapIndex(game.timeline, card.year, gapIndex)){
     playJudgeMark(true);
     game.correctCount++;
+    renderHud();   // 正解数・勾玉の色を、カードが飛んでいる間も待たずすぐ反映する
     insertCardWithAnimation(card, correctIdx, sourceEl, function(){
       // 次の手札を描く(renderGame)前にロックを外しておかないと、
       // 描いた直後の手札がロックされたままになってしまう
@@ -2556,6 +2578,7 @@ function handleSoloPlacement(gapIndex, gapEl, sourceEl, ghostEl){
   // まちがえたときは、そのカードを正しい位置に入れて見せる
   game.missCount++;
   playJudgeMark(false);
+  renderHud();   // 勾玉が赤くなるのを、カードが飛んでいる間も待たずすぐ反映する
   insertCardWithAnimation(card, correctIdx, sourceEl, function(){
     uiLocked = false;
     finishSoloStep();
@@ -2642,6 +2665,7 @@ function renderHud(){
   if(!game) return;
   var turnLabel = document.getElementById('turn-label');
   var deckCount = document.getElementById('deck-count');
+  var missGems = document.getElementById('miss-gems');
 
   if(game.type === 'online'){
     var r = game.room, ps = r.players || [], cur = ps[r.turn];
@@ -2649,12 +2673,16 @@ function renderHud(){
     var myTurn = !!(cur && cur.key === online.myKey && r.status === 'playing');
     turnLabel.textContent = (r.status === 'finished') ? '対戦終了' : '';
     deckCount.textContent = '山札:' + (r.deck || []).length + '枚';
+    missGems.hidden = true;
     if(myTurn && !online.wasMyTurn) showMyTurnBanner();
     online.wasMyTurn = myTurn;
   } else {
     turnLabel.textContent = '正解 ' + game.correctCount + '枚';
-    var timeStr = '残り時間:' + game.timeLeft + '秒　ミス:' + game.missCount + '/3';
-    deckCount.textContent = '山札:' + game.deck.length + '枚　' + timeStr;
+    deckCount.textContent = '山札:' + game.deck.length + '枚　残り時間:' + game.timeLeft + '秒';
+    missGems.hidden = false;
+    missGems.querySelectorAll('.gem').forEach(function(gem, i){
+      gem.classList.toggle('is-miss', i < game.missCount);
+    });
   }
 }
 
