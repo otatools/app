@@ -955,37 +955,6 @@ h1{ font-size:1.5rem; text-align:center; letter-spacing:.05em; }
    （イラストの切り抜き位置などを確認するためのデバッグ機能） */
 var DEBUG_CARDS = /(?:^|[?&])debug=cards(?:&|$)/.test(location.search);
 
-/* URLに ?debug=metrics を付けて開くと、画面左上に実際の画面サイズ・カードの
-   大きさの計算結果を表示する（手札と場札の間の余白調査のための一時的な機能） */
-var DEBUG_METRICS = /(?:^|[?&])debug=metrics(?:&|$)/.test(location.search);
-function renderDebugMetrics(){
-  if(!DEBUG_METRICS) return;
-  var el = document.getElementById('debug-metrics');
-  if(!el){
-    el = document.createElement('div');
-    el.id = 'debug-metrics';
-    el.style.cssText = 'position:fixed;top:0;left:0;z-index:99999;background:rgba(0,0,0,.85);' +
-      'color:#0f0;font:13px/1.5 monospace;padding:8px 10px;white-space:pre;pointer-events:none;';
-    document.body.appendChild(el);
-  }
-  var gs = document.getElementById('game-screen');
-  var tw = document.getElementById('timeline-wrap');
-  var hw = document.getElementById('hand-wrap');
-  var hr = document.getElementById('hand-row');
-  if(!gs || !tw || !hw || !hr) return;
-  var cardw = getComputedStyle(tw).getPropertyValue('--cardw');
-  var handw = getComputedStyle(hr).getPropertyValue('--handw');
-  var twBottom = Math.round(tw.getBoundingClientRect().bottom);
-  var hwTop = Math.round(hw.getBoundingClientRect().top);
-  el.textContent =
-    'dpr=' + devicePixelRatio + '\n' +
-    'innerW=' + innerWidth + ' innerH=' + innerHeight + '\n' +
-    'gameScreen.clientHeight=' + gs.clientHeight + '\n' +
-    'cardw=' + cardw + ' handw=' + handw + '\n' +
-    'gap(timeline-wrap下端→hand-wrap上端)=' + (hwTop - twBottom) + 'px';
-}
-if(DEBUG_METRICS) setInterval(renderDebugMetrics, 400);
-
 /* ============================================================
    0. 初期化まわり（拡大防止・高さ対応・保険）
    ============================================================ */
@@ -2984,7 +2953,7 @@ function fitHandCards(){
   var w = Math.floor((avail - gap * (cols - 1)) / cols);
   if(w < 78 && gap > 2 && !isNarrow){ gap = 8;  w = Math.floor((avail - gap * (cols - 1)) / cols); }
   if(w < 68 && gap > 2 && !isNarrow){ gap = 6;  w = Math.floor((avail - gap * (cols - 1)) / cols); }
-  w = Math.max(52, Math.min(190, w));                 // 小さすぎても大きすぎてもだめ
+  w = Math.max(52, Math.min(230, w));                 // 小さすぎても大きすぎてもだめ
   row.style.setProperty('--handgap', gap + 'px');
   row.style.setProperty('--handw', w + 'px');
   /* 段の間の縦のすき間。.selectedで持ち上がる分(translateY(-16px)+scale(1.14))を
