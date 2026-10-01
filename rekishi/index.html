@@ -67,11 +67,13 @@ h1{ font-size:1.5rem; text-align:center; letter-spacing:.05em; }
 .hud .turn-label{ font-weight:700; font-size:.95rem; }
 .hud .deck-count{ font-size:.75rem; color:#6b5c42; }
 /* ソロ専用：残り時間・ミスの勾玉・正解数を、画面上部中央にひとまとめで見せる。
-   #game-screenが基準のposition:relativeなので、hud自体の幅・高さには影響しない。 */
+   position:absoluteの重ねものにすると、hudの実際の高さがそのぶん確保されず、
+   場札と重なってしまうことがあったので、hud内の通常の要素にした
+   （左右のturn-label/deck-countが空になるぶん、justify-content:space-betweenで
+   自然と中央に来る）。 */
 .solo-stats{
-  position:absolute; top:10px; left:50%; transform:translateX(-50%);
-  display:flex; align-items:center; gap:10px; z-index:1; pointer-events:none;
-  font-size:.8rem; font-weight:700; color:#4a4436; white-space:nowrap;
+  display:flex; align-items:center; gap:10px;
+  font-size:1.25rem; font-weight:700; color:#4a4436; white-space:nowrap;
 }
 .miss-gems{ display:flex; gap:5px; align-items:center; }
 .miss-gems .gem{ position:relative; width:16px; height:23px; }
