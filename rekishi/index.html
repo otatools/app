@@ -109,19 +109,19 @@ h1{ font-size:1.5rem; text-align:center; letter-spacing:.05em; }
   padding:4px 3px; text-align:center; transform:translateX(0);
 }
 .card-pic{ -webkit-user-drag:none; user-drag:none; pointer-events:none; }
-.tl-card .pic-wrap{ position:relative; width:100%; flex:0 0 auto; }
 .tl-card .card-pic{
-  width:100%; aspect-ratio:1.3; object-fit:cover; border-radius:8px; display:block;
+  width:100%; aspect-ratio:1.05; object-fit:cover; border-radius:8px; flex:0 0 auto; display:block;
 }
 .tl-card .img-ph{ background:#eadfc4; }
-/* 年を絵の上に重ねて、年表としての並び順を見た瞬間につかめるようにする。
-   下に文字で書いていたぶんの高さが浮くので、そのぶん絵を縦に大きくしてある。 */
+/* 年を絵の上に重ねるのではなく、絵の上に帯として独立させ、そのぶんカード全体を
+   縦に伸ばす（絵を欠けさせない）。手札→場札のアニメーションでは、着地先の
+   実測サイズに向かって伸び縮みするので、この帯のぶんだけ上に伸びて見える。 */
 .tl-card .year{
-  position:absolute; top:0; left:0; z-index:1;
-  font-weight:900; color:#fff; font-size:.74rem; line-height:1; letter-spacing:.02em;
+  align-self:stretch; flex:0 0 auto;
+  margin:-4px -3px 4px; padding:4px 4px;
+  font-weight:900; color:#fff; font-size:.9rem; line-height:1.3; letter-spacing:.02em;
   background:linear-gradient(135deg, var(--accent), #8a2412);
-  padding:3px 8px 3px 5px; border-radius:8px 0 8px 0;
-  box-shadow:1px 1px 3px rgba(0,0,0,.35);
+  border-radius:8px 8px 0 0;
 }
 .tl-card .info{ display:flex; flex-direction:column; align-items:center; min-width:0; width:100%; flex:1 1 auto; justify-content:flex-start; }
 .tl-card .yomi{
@@ -2582,7 +2582,7 @@ function cardYomiHtml(c){
 function cardInnerHtml(c){
   var img = cardPicHtml(c);
   if(c.image) img = img.replace('class="card-pic"', 'class="card-pic" style="object-position:' + tlImgPosX(c.id) + '% 50%"');
-  return '<div class="pic-wrap">' + img + '<div class="year">' + c.year + '年</div></div>' +
+  return '<div class="year">' + c.year + '年</div>' + img +
     '<div class="info">' +
       cardYomiHtml(c) +
       '<div class="name">' + escapeHtml(c.name) + '</div>' +
