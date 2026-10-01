@@ -14,7 +14,11 @@
 <title>歴史ならべ</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&display=swap">
+<!-- display=swapだと、一旦フォールバックの書体で表示してから専用フォントに切り替わる瞬間が
+     目立って見えてしまう。display=optionalにすると、読み込みが間に合わなければそのページでは
+     フォールバックのまま通す（後から切り替わらない）ので、違う書体がパッと出て入れ替わる
+     見た目にならない。 -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&display=optional">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
@@ -2989,7 +2993,9 @@ function attachCardDrag(el, opts){
     var handWrap = document.getElementById('hand-wrap');
     var hintBar = document.getElementById('hint-bar');
     var limit = null;
-    if(hintBar) limit = hintBar.getBoundingClientRect().bottom;
+    // hintBarがhidden(display:none)だと高さ0の矩形になり、それを基準にすると
+    // どこで指を離しても「手札のあたり」と誤判定されてしまうので、その時はhandWrapで代用する
+    if(hintBar && !hintBar.hidden) limit = hintBar.getBoundingClientRect().bottom;
     else if(handWrap) limit = handWrap.getBoundingClientRect().top;
     if(limit !== null && y > limit) return null;     // 手札のあたりで離したら取り消し
 
@@ -3167,11 +3173,11 @@ function renderGame(dealAnimate, onDealDone){
     }, dealAnimate, onDealDone);
     renderHandSolo();
     // 「どこに置くか…ドラッグ」の文章は長すぎて1行に収まらず省略されてしまうので、
-    // 常に表示していたこの案内はやめる。ソロには自分の番/相手の番の区別がなく
-    // 常にこの空の状態なので、消しても高さが場面によってずれる心配はない
-    // （消して浮いた高さぶん、手札を少し大きく表示できる）
+    // 常に表示していたこの案内はやめる
+    // hint.hidden は切りかえない：display:noneにすると、ドラッグの着地判定
+    // (findMarker)がヒント欄の位置を基準にしているため、高さ0になったぶん
+    // 「手札のあたりで離した」と誤判定されて、どこにもカードを置けなくなってしまう
     hint.textContent = '';
-    hint.hidden = !hint.textContent;
   }
 }
 
