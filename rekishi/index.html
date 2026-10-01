@@ -1683,15 +1683,28 @@ function setFlyCardFontFromSource(clone, sourceEl){
 }
 /* 着地間際に、本物の場札カード(.tl-card)と同じ文字サイズへなめらかに収束させる。
    ここで合わせておかないと、着地して本物のカードに差し替わった瞬間に文字サイズが
-   カクッと変わって見えてしまう。値は .tl-card .name/.yomi/.event のCSSと合わせてある。 */
+   カクッと変わって見えてしまう。値は .tl-card .name/.yomi/.event/.year のCSSと
+   合わせてある（固定値ではなく、実際の場札の大きさ(--cardw)から計算する。
+   画面が低くて場札が縮んでいるときに、着地の瞬間だけ等身大(cardw=100px相当)の
+   大きさになってから本物のカードへ一気に縮む、という見た目のズレを防ぐため）。 */
 function setFlyCardFontToTimelineSize(clone){
   if(!clone) return;
+  var wrap = document.getElementById('timeline-wrap');
+  var cardw = wrap ? parseFloat(getComputedStyle(wrap).getPropertyValue('--cardw')) : NaN;
+  if(!(cardw > 0)) cardw = 100;
   var nameEl = clone.querySelector('.name');
   var yomiEl = clone.querySelector('.yomi');
   var eventEl = clone.querySelector('.event');
-  if(nameEl) nameEl.style.fontSize = '1rem';
-  if(yomiEl) yomiEl.style.fontSize = '.55rem';
-  if(eventEl) eventEl.style.fontSize = '.64rem';
+  var yearEl = clone.querySelector('.year');
+  if(nameEl) nameEl.style.fontSize = (cardw * .16) + 'px';
+  if(yomiEl) yomiEl.style.fontSize = (cardw * .088) + 'px';
+  if(eventEl) eventEl.style.fontSize = (cardw * .1024) + 'px';
+  if(yearEl){
+    yearEl.style.fontSize = (cardw * .184) + 'px';
+    yearEl.style.paddingTop = (cardw * .04) + 'px';
+    yearEl.style.paddingBottom = (cardw * .04) + 'px';
+    yearEl.style.maxHeight = (cardw * .48) + 'px';   // 文字+余白が収まるだけの十分な高さ
+  }
 }
 
 /* 着地位置(target)へスーッと移動させ、そこで実際の年表カードと同じサイズへ収束させる。
@@ -1744,16 +1757,14 @@ function playFlyAnimation(sourceEl, target, onDone, ghostEl, cardId){
       clone.style.width = tRect.width + 'px';
       clone.style.height = tRect.height + 'px';
       clone.style.borderRadius = '10px';
-      // 場札での実際の文字の大きさへなめらかに収束させる（着地時に文字だけ急に変わらないように）
+      // 場札での実際の文字の大きさ・年号帯の大きさへなめらかに収束させる
+      // （着地時に文字だけ急に変わらないように。年号帯の展開もここでまとめて行う）
       setFlyCardFontToTimelineSize(clone);
       var clonePic = clone.querySelector('.card-pic');
       if(clonePic){
         clonePic.style.aspectRatio = '1.05';   // 場札のイラスト比率へなめらかに合わせる
         clonePic.style.objectPosition = tlImgPosX(cardId) + '% 50%'; // 場札の左右位置へなめらかに合わせる
       }
-      yearEl.style.maxHeight = '48px';
-      yearEl.style.paddingTop = '4px';
-      yearEl.style.paddingBottom = '4px';
     });
   });
 
